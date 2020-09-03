@@ -737,6 +737,9 @@ public:
 
         rtasPathValueWrapper.init ({ settings, Ids::rtasFolder, nullptr },
                                    getAppSettings().getStoredPath (Ids::rtasPath, TargetOS::osx), TargetOS::osx);
+
+        araPathValueWrapper.init ({ settings, Ids::araFolder, nullptr },
+                                  getAppSettings().getStoredPath (Ids::araPath, TargetOS::osx), TargetOS::osx);
     }
 
 protected:
@@ -1366,9 +1369,9 @@ public:
 
                 build_tools::RelativePath binaryPath (config.getTargetBinaryRelativePathString(),
                                                       build_tools::RelativePath::projectFolder);
-                configurationBuildDir = sanitisePath (binaryPath.rebased (owner.projectFolder,
-                                                                          owner.getTargetFolder(),
-                                                                          build_tools::RelativePath::buildTargetFolder)
+                configurationBuildDir = expandPath (binaryPath.rebased (owner.projectFolder,
+                                                                        owner.getTargetFolder(),
+                                                                        build_tools::RelativePath::buildTargetFolder)
                                                                 .toUnixStyle());
             }
 
@@ -1773,6 +1776,7 @@ public:
             options.isAuSandboxSafe                 = owner.project.isAUSandBoxSafe();
             options.isPluginSynth                   = owner.project.isPluginSynth();
             options.suppressResourceUsage           = owner.getSuppressPlistResourceUsage();
+            options.isPluginARAEffect               = owner.project.shouldEnableARA();
 
             options.write (infoPlistFile);
         }
