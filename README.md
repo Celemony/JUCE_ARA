@@ -7,6 +7,7 @@ There are two active branches: develop and condensed. They are intended to be sy
 
 Note that Celemony is not endorsing the use of JUCE by providing this fork. JUCE_ARA is a fairly thin adapter to integrate ARA into JUCE, it does not provide any features that would be relevant when using ARA with a different framework. Consequently, the decision whether or not to use JUCE for any given project should be made independently of JUCE_ARA.
 
+The ARA related changes are described in detail in [JUCE_ARA.md](https://github.com/Celemony/JUCE_ARA/blob/develop/JUCE_ARA.md).
 For feedback and questions, please contact Celemony via [ara@celemony.com](mailto:ara@celemony.com?Subject=JUCE%20ARA%20integration).
 
 
