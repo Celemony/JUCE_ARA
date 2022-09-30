@@ -3,14 +3,14 @@
 #include "ARAPluginDemoPlaybackRenderer.h"
 
 //==============================================================================
-ARA::PlugIn::AudioModification* ARAPluginDemoDocumentController::doCreateAudioModification (ARA::PlugIn::AudioSource* audioSource, ARA::ARAAudioModificationHostRef hostRef, const ARA::PlugIn::AudioModification* optionalModificationToClone) noexcept
+juce::ARAAudioModification* ARAPluginDemoDocumentController::doCreateAudioModification (juce::ARAAudioSource* audioSource, ARA::ARAAudioModificationHostRef hostRef, const juce::ARAAudioModification* optionalModificationToClone) noexcept
 {
     return new ARAPluginDemoAudioModification (static_cast<juce::ARAAudioSource*> (audioSource), hostRef, static_cast<const juce::ARAAudioModification*> (optionalModificationToClone));
 }
 
-ARA::PlugIn::PlaybackRenderer* ARAPluginDemoDocumentController::doCreatePlaybackRenderer() noexcept
+juce::ARAPlaybackRenderer* ARAPluginDemoDocumentController::doCreatePlaybackRenderer() noexcept
 {
-    return new PluginDemoPlaybackRenderer (this);
+    return new PluginDemoPlaybackRenderer (getDocumentController());
 }
 
 //==============================================================================
@@ -23,7 +23,7 @@ bool ARAPluginDemoDocumentController::doRestoreObjectsFromStream (juce::ARAInput
     for (juce::int64 i = 0; i < numAudioModifications; ++i)
     {
         const float progressVal = static_cast<float> (i) / static_cast<float> (numAudioModifications);
-        getHostArchivingController()->notifyDocumentUnarchivingProgress (progressVal);
+        getDocumentController()->getHostArchivingController()->notifyDocumentUnarchivingProgress (progressVal);
 
         // read audio modification persistent ID and analysis result from archive
         const juce::String persistentID = input.readString();
@@ -46,7 +46,7 @@ bool ARAPluginDemoDocumentController::doRestoreObjectsFromStream (juce::ARAInput
         }
     }
 
-    getHostArchivingController()->notifyDocumentUnarchivingProgress (1.0f);
+    getDocumentController()->getHostArchivingController()->notifyDocumentUnarchivingProgress (1.0f);
 
     return ! input.failed();
 }
@@ -68,10 +68,10 @@ bool ARAPluginDemoDocumentController::doStoreObjectsToStream (juce::ARAOutputStr
         success = success && output.writeBool (audioModificationsToPersist[i]->isDimmed());
 
         const float progressVal = static_cast<float> (i) / static_cast<float> (numAudioModifications);
-        getHostArchivingController()->notifyDocumentArchivingProgress (progressVal);
+        getDocumentController()->getHostArchivingController()->notifyDocumentArchivingProgress (progressVal);
     }
 
-    getHostArchivingController()->notifyDocumentArchivingProgress (1.0);
+    getDocumentController()->getHostArchivingController()->notifyDocumentArchivingProgress (1.0);
 
     return success;
 }
@@ -80,5 +80,5 @@ bool ARAPluginDemoDocumentController::doStoreObjectsToStream (juce::ARAOutputStr
 // This creates the static ARAFactory instances for the plugin.
 const ARA::ARAFactory* JUCE_CALLTYPE createARAFactory()
 {
-    return juce::ARADocumentController::createARAFactory<ARAPluginDemoDocumentController>();
+    return juce::ARADocumentControllerSpecialisation::createARAFactory<ARAPluginDemoDocumentController>();
 }
