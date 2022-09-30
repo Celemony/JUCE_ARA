@@ -15,7 +15,6 @@ ARAPluginDemoAudioProcessor::ARAPluginDemoAudioProcessor()
                        )
 #endif
 {
-    lastPositionInfo.resetToDefault();
 }
 
 //==============================================================================
@@ -131,11 +130,10 @@ void ARAPluginDemoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 {
     juce::ScopedNoDenormals noDenormals;
 
-    auto playhead = getPlayHead();
-    if (! playhead || ! playhead->getCurrentPosition (lastPositionInfo))
-        lastPositionInfo.resetToDefault();
+    if (auto playhead = getPlayHead())
+        positionInfo = playhead->getPosition().orFallback (juce::AudioPlayHead::PositionInfo());
 
-    if (processBlockForARA (buffer, isNonRealtime(), lastPositionInfo))
+    if (processBlockForARA (buffer, isNonRealtime(), positionInfo))
         return;
 
     // This example plug-in requires to be used with ARA - we just pass through otherwise.

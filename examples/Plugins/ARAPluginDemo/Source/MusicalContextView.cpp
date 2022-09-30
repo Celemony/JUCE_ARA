@@ -12,7 +12,6 @@ MusicalContextView::MusicalContextView (DocumentView& docView)
 {
     document->addListener (this);
     findMusicalContext();
-    lastPaintedPosition.resetToDefault();
     setTooltip (juce::String ("Rulers showing playback time in seconds, bars+beats and song chords.") + juce::newLine +
                 juce::String ("Double-click to repositon and start host playback (if supported by DAW)."));
     startTimerHz (20);
@@ -71,10 +70,9 @@ void MusicalContextView::findMusicalContext()
 
 void MusicalContextView::timerCallback()
 {
-    auto positionInfo = documentView.getPlayHeadPositionInfo();
-    if (lastPaintedPosition.ppqLoopStart != positionInfo.ppqLoopStart ||
-        lastPaintedPosition.ppqLoopEnd != positionInfo.ppqLoopEnd ||
-        lastPaintedPosition.isLooping  != positionInfo.isLooping)
+    const auto positionInfo = documentView.getPlayHeadPositionInfo();
+    if (lastPaintedPosition.getLoopPoints() != positionInfo.getLoopPoints() ||
+        lastPaintedPosition.getIsLooping() != positionInfo.getIsLooping())
     {
         repaint();
     }
@@ -189,11 +187,12 @@ void MusicalContextView::paint (juce::Graphics& g)
     // locators
     {
         lastPaintedPosition = documentView.getPlayHeadPositionInfo();
-        const auto startInSeconds = tempoConverter.getTimeForQuarter (lastPaintedPosition.ppqLoopStart);
-        const auto endInSeconds = tempoConverter.getTimeForQuarter (lastPaintedPosition.ppqLoopEnd);
+        const juce::AudioPlayHead::LoopPoints loopPoints = lastPaintedPosition.getLoopPoints().orFallback (juce::AudioPlayHead::LoopPoints {0.0, 0.0});
+        const auto startInSeconds = tempoConverter.getTimeForQuarter (loopPoints.ppqStart);
+        const auto endInSeconds = tempoConverter.getTimeForQuarter (loopPoints.ppqEnd);
         const int startX = documentView.getPlaybackRegionsViewsXForTime (startInSeconds);
         const int endX = documentView.getPlaybackRegionsViewsXForTime (endInSeconds);
-        g.setColour (lastPaintedPosition.isLooping ? juce::Colours::skyblue.withAlpha (0.3f) : juce::Colours::grey.withAlpha (0.3f));
+        g.setColour (lastPaintedPosition.getIsLooping() ? juce::Colours::skyblue.withAlpha (0.3f) : juce::Colours::grey.withAlpha (0.3f));
         g.fillRect (startX, bounds.getY(), endX - startX, bounds.getHeight());
     }
 

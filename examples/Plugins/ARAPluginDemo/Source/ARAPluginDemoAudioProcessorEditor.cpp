@@ -13,7 +13,7 @@ ARAPluginDemoAudioProcessorEditor::ARAPluginDemoAudioProcessorEditor (ARAPluginD
 {
     if (isARAEditorView())
     {
-        documentView.reset (new DocumentView (getARAEditorView(), p.getLastKnownPositionInfo()));
+        documentView.reset (new DocumentView (getARAEditorView(), p.getPositionInfo()));
         documentView->setShowOnlySelectedRegionSequences (editorDefaultSettings.getProperty (showOnlySelectedId, false));
         documentView->setScrollFollowsPlayHead (editorDefaultSettings.getProperty (scrollFollowsPlayHeadId, documentView->isScrollFollowingPlayHead()));
         // TODO JUCE_ARA hotfix for Unicode chord symbols, see https://forum.juce.com/t/embedding-unicode-string-literals-in-your-cpp-files/12600/7
@@ -120,7 +120,7 @@ juce::String timeToTimecodeString (double seconds)
 
 void ARAPluginDemoAudioProcessorEditor::timerCallback()
 {
-    const auto timePosition = documentView->getPlayHeadPositionInfo().timeInSeconds;
+    const auto timePosition = documentView->getPlayHeadPositionInfo().getTimeInSeconds().orFallback (0.0);
     playheadLinearPositionLabel.setText (timeToTimecodeString (timePosition), juce::dontSendNotification);
 
     juce::String musicalPosition;

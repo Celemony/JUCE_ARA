@@ -43,14 +43,14 @@ void PluginDemoPlaybackRenderer::releaseResources()
 }
 
 //==============================================================================
-bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer, bool isNonRealtime, const juce::AudioPlayHead::CurrentPositionInfo& positionInfo) noexcept
+bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer, bool isNonRealtime, const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept
 {
     const auto numSamples = buffer.getNumSamples();
     jassert (numSamples <= maximumSamplesPerBlock);
     jassert (numChannels == buffer.getNumChannels());
     jassert (isNonRealtime || useBufferedAudioSourceReader);
-    const auto timeInSamples = positionInfo.timeInSamples;
-    const auto isPlaying = positionInfo.isPlaying;
+    const auto timeInSamples = positionInfo.getTimeInSamples().orFallback (0);
+    const auto isPlaying = positionInfo.getIsPlaying();
 
     bool success = true;
     bool didRenderAnyRegion = false;

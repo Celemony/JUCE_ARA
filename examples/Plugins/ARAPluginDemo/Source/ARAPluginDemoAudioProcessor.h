@@ -20,7 +20,7 @@ public:
     ARAPluginDemoAudioProcessor();
 
     // Getter of current playback state for the UI
-    const juce::AudioPlayHead::CurrentPositionInfo& getLastKnownPositionInfo() { return lastPositionInfo; }
+    const juce::AudioPlayHead::PositionInfo& getPositionInfo() { return positionInfo; }
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -57,7 +57,7 @@ public:
 
 private:
     //==============================================================================
-    juce::AudioPlayHead::CurrentPositionInfo lastPositionInfo;
+    juce::AudioPlayHead::PositionInfo positionInfo;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ARAPluginDemoAudioProcessor)
 };
