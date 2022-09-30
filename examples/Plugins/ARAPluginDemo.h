@@ -148,7 +148,7 @@ private:
 inline std::optional<Range<int64>> readPlaybackRangeIntoBuffer (Range<double> playbackRange,
                                                                 const ARAPlaybackRegion* playbackRegion,
                                                                 AudioBuffer<float>& buffer,
-                                                                const std::function<AudioFormatReader* (ARA::PlugIn::AudioSource*)>& getReader)
+                                                                const std::function<AudioFormatReader* (ARAAudioSource*)>& getReader)
 {
     const auto rangeInAudioModificationTime = playbackRange - playbackRegion->getStartInPlaybackTime()
                                                             + playbackRegion->getStartInAudioModificationTime();
@@ -384,7 +384,7 @@ private:
     // We're subclassing here only to provide a proper default c'tor for our shared resource
 
     SharedResourcePointer<SharedTimeSliceThread> sharedTimesliceThread;
-    std::map<ARA::PlugIn::AudioSource*, PossiblyBufferedReader> audioSourceReaders;
+    std::map<ARAAudioSource*, PossiblyBufferedReader> audioSourceReaders;
     bool useBufferedAudioSourceReader = true;
     int numChannels = 2;
     double sampleRate = 48000.0;
@@ -415,7 +415,7 @@ public:
 
     void didAddRegionSequence (ARA::PlugIn::RegionSequence* rs) noexcept override
     {
-        auto* sequence = dynamic_cast<ARARegionSequence*> (rs);
+        auto* sequence = static_cast<ARARegionSequence*> (rs);
         sequence->addListener (this);
         regionSequences.insert (sequence);
         asyncConfigCallback.startConfigure();
@@ -565,7 +565,7 @@ private:
 
     double sampleRate = 48000.0;
     SharedResourcePointer<SharedTimeSliceThread> timeSliceThread;
-    std::map<ARA::PlugIn::AudioSource*, std::unique_ptr<BufferingAudioReader>> audioSourceReaders;
+    std::map<ARAAudioSource*, std::unique_ptr<BufferingAudioReader>> audioSourceReaders;
 
     std::set<ARARegionSequence*> regionSequences;
 };
@@ -869,10 +869,6 @@ public:
         updatePlaybackDuration();
     }
 
-    void willUpdatePlaybackRegionProperties (ARAPlaybackRegion*, ARAPlaybackRegion::PropertiesPtr) override
-    {
-    }
-
     void didUpdatePlaybackRegionProperties (ARAPlaybackRegion*) override
     {
         updatePlaybackDuration();
@@ -1058,11 +1054,11 @@ class OverlayComponent : public Component,
 public:
     class PlayheadMarkerComponent : public Component
     {
-        void paint (Graphics& g) override { g.fillAll (juce::Colours::yellow.darker (0.2f)); }
+        void paint (Graphics& g) override { g.fillAll (Colours::yellow.darker (0.2f)); }
     };
 
     OverlayComponent (PlayHeadState& playHeadStateIn)
-        : playHeadState (&playHeadStateIn)
+        : playHeadState (playHeadStateIn)
     {
         addChildComponent (playheadMarker);
         setInterceptsMouseClicks (false, false);
@@ -1092,9 +1088,9 @@ public:
 private:
     void doResize()
     {
-        if (playHeadState->isPlaying.load())
+        if (playHeadState.isPlaying.load())
         {
-            const auto markerX = playHeadState->timeInSeconds.load() * pixelPerSecond;
+            const auto markerX = playHeadState.timeInSeconds.load() * pixelPerSecond;
             const auto playheadLine = getLocalBounds().withTrimmedLeft ((int) (markerX - markerWidth / 2.0) - horizontalOffset)
                                                       .removeFromLeft ((int) markerWidth);
             playheadMarker.setVisible (true);
@@ -1113,7 +1109,7 @@ private:
 
     static constexpr double markerWidth = 2.0;
 
-    PlayHeadState* playHeadState;
+    PlayHeadState& playHeadState;
     double pixelPerSecond = 1.0;
     int horizontalOffset = 0;
     PlayheadMarkerComponent playheadMarker;
@@ -1336,9 +1332,7 @@ private:
             trackHeaders.clear();
 
             for (auto* regionSequence : araDocument.getRegionSequences())
-            {
                 addTrackViews (regionSequence);
-            }
 
             update();
 
@@ -1355,12 +1349,11 @@ private:
     };
 
     static constexpr auto minimumZoom = 10.0;
-    static constexpr auto trackHeight = 60;
 
     ARADocument& araDocument;
 
     bool regionSequenceViewsAreValid = false;
-    double timelineLength = 0;
+    double timelineLength = 0.0;
     double zoomLevelPixelPerSecond = minimumZoom * 4;
 
     WaveformCache waveformCache;
@@ -1394,7 +1387,7 @@ public:
         // ARA requires that plugin editors are resizable to support tight integration
         // into the host UI
         setResizable (true, false);
-        setSize (400, 300);
+        setSize (800, 300);
     }
 
     //==============================================================================
