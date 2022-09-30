@@ -54,6 +54,26 @@
 
 
 //==============================================================================
+class ARADemoPluginAudioModification  : public ARAAudioModification
+{
+public:
+    ARADemoPluginAudioModification (ARAAudioSource* audioSource, ARA::ARAAudioModificationHostRef hostRef,
+                                       const ARAAudioModification* optionalModificationToClone)
+        : ARAAudioModification (audioSource, hostRef, optionalModificationToClone)
+    {
+        if (optionalModificationToClone != nullptr)
+            dimmed = static_cast<const ARADemoPluginAudioModification*> (optionalModificationToClone)->dimmed;
+    }
+
+    bool isDimmed() const { return dimmed; }
+    void setDimmed (bool shouldDim) { dimmed = shouldDim; }
+
+private:
+    bool dimmed = false;
+};
+
+
+//==============================================================================
 struct PreviewState
 {
     std::atomic<double> previewTime { 0.0 };
@@ -156,7 +176,8 @@ inline std::optional<Range<int64>> readPlaybackRangeIntoBuffer (Range<double> pl
     const auto rangeInAudioModificationTime = playbackRange - playbackRegion->getStartInPlaybackTime()
                                                             + playbackRegion->getStartInAudioModificationTime();
 
-    const auto audioSource = playbackRegion->getAudioModification()->getAudioSource();
+    const auto audioModification = playbackRegion->getAudioModification<ARADemoPluginAudioModification>();
+    const auto audioSource = audioModification->getAudioSource();
     const auto audioModificationSampleRate = audioSource->getSampleRate();
 
     const Range<int64_t> sampleRangeInAudioModification {
@@ -195,7 +216,11 @@ inline std::optional<Range<int64>> readPlaybackRangeIntoBuffer (Range<double> pl
     auto* reader = getReader (audioSource);
 
     if (reader != nullptr && reader->read (&buffer, (int) outputOffset, (int) readLength, inputOffset, true, true))
+    {
+        if (audioModification->isDimmed())
+            buffer.applyGain ((int) outputOffset, (int) readLength, 0.25f);
         return Range<int64>::withStartAndLength (outputOffset, readLength);
+    }
 
     return {};
 }
@@ -350,6 +375,11 @@ public:
                     continue;
                 }
 
+                // Apply dim if enabled
+                if (playbackRegion->getAudioModification<ARADemoPluginAudioModification>()->isDimmed())
+                    readBuffer.applyGain (startInBuffer, numSamplesToRead, 0.25f);  // dim by about 12 dB
+
+                // Mix output of all regions
                 if (didRenderAnyRegion)
                 {
                     // Mix local buffer into the output buffer.
@@ -506,8 +536,11 @@ public:
                 if (regionIsAssignedToEditor)
                 {
                     const auto previewTime = previewState->previewTime.load();
+                    const auto previewDimmed = previewedRegion->getAudioModification<ARADemoPluginAudioModification>()->isDimmed();
 
-                    if (lastPreviewTime != previewTime || lastPlaybackRegion != previewedRegion)
+                    if (lastPreviewTime != previewTime ||
+                        lastPlaybackRegion != previewedRegion ||
+                        lastPreviewDimmed != previewDimmed)
                     {
                         Range<double> previewRangeInPlaybackTime { previewTime - 0.25, previewTime + 0.25 };
                         previewBuffer->clear();
@@ -524,6 +557,7 @@ public:
                         {
                             lastPreviewTime = previewTime;
                             lastPlaybackRegion = previewedRegion;
+                            lastPreviewDimmed = previewDimmed;
                             previewLooper = Looper (previewBuffer.get(), *rangeInOutput);
                         }
                     }
@@ -563,6 +597,7 @@ private:
     AsyncConfigurationCallback asyncConfigCallback { [this] { configure(); } };
     double lastPreviewTime = 0.0;
     ARAPlaybackRegion* lastPlaybackRegion = nullptr;
+    bool lastPreviewDimmed = false;
     std::unique_ptr<AudioBuffer<float>> previewBuffer;
     Looper previewLooper;
 
@@ -582,6 +617,15 @@ public:
     PreviewState previewState;
 
 protected:
+    ARAAudioModification* doCreateAudioModification (ARAAudioSource* audioSource,
+                                                     ARA::ARAAudioModificationHostRef hostRef,
+                                                     const ARAAudioModification* optionalModificationToClone) noexcept override
+    {
+        return new ARADemoPluginAudioModification (static_cast<ARAAudioSource*> (audioSource),
+                                                   hostRef,
+                                                   static_cast<const ARADemoPluginAudioModification*> (optionalModificationToClone));
+    }
+
     ARAPlaybackRenderer* doCreatePlaybackRenderer() noexcept override
     {
         return new PlaybackRenderer (getDocumentController());
@@ -595,14 +639,64 @@ protected:
     bool doRestoreObjectsFromStream (ARAInputStream& input,
                                      const ARARestoreObjectsFilter* filter) noexcept override
     {
-        ignoreUnused (input, filter);
-        return false;
+        // start reading data from the archive, starting with the number of audio modifications in the archive
+        const auto numAudioModifications = input.readInt64();
+
+        // loop over stored audio modification data
+        for (int64 i = 0; i < numAudioModifications; ++i)
+        {
+            const auto progressVal = (float) i / (float) (numAudioModifications);
+            getDocumentController()->getHostArchivingController()->notifyDocumentUnarchivingProgress (progressVal);
+
+            // read audio modification persistent ID and analysis result from archive
+            const String persistentID = input.readString();
+            const bool dimmed = input.readBool();
+
+            // find audio modification to restore the state to (drop state if not to be loaded)
+            auto audioModification = filter->getAudioModificationToRestoreStateWithID<ARADemoPluginAudioModification> (persistentID.getCharPointer());
+            if (audioModification == nullptr)
+                continue;
+
+            bool dimChanged = (dimmed != audioModification->isDimmed());
+            audioModification->setDimmed (dimmed);
+
+            // if the dim state changed, send a sample content change notification without notifying the host
+            if (dimChanged)
+            {
+                audioModification->notifyContentChanged (ARAContentUpdateScopes::samplesAreAffected(), false);
+                for (auto playbackRegion : audioModification->getPlaybackRegions())
+                    playbackRegion->notifyContentChanged (ARAContentUpdateScopes::samplesAreAffected(), false);
+            }
+        }
+
+        getDocumentController()->getHostArchivingController()->notifyDocumentUnarchivingProgress (1.0f);
+
+        return ! input.failed();
     }
 
     bool doStoreObjectsToStream (ARAOutputStream& output, const ARAStoreObjectsFilter* filter) noexcept override
     {
-        ignoreUnused (output, filter);
-        return false;
+        // this example implementation only deals with audio modification states
+        const auto& audioModificationsToPersist{ filter->getAudioModificationsToStore<ARADemoPluginAudioModification>() };
+
+        // write the number of audio modifications we are persisting
+        const size_t numAudioModifications = audioModificationsToPersist.size();
+        bool success = output.writeInt64 ((int64)numAudioModifications);
+
+        // for each audio modification to persist, persist its ID followed by whether or not it's dimmed
+        for (size_t i = 0; i < numAudioModifications; ++i)
+        {
+            // write persistent ID and dim state
+            success = success && output.writeString (audioModificationsToPersist[i]->getPersistentID());
+            success = success && output.writeBool (audioModificationsToPersist[i]->isDimmed());
+
+            const auto progressVal = (float) i / (float) numAudioModifications;
+            getDocumentController()->getHostArchivingController()->notifyDocumentArchivingProgress (progressVal);
+        }
+
+        getDocumentController()->getHostArchivingController()->notifyDocumentArchivingProgress (1.0);
+
+        return success;
     }
 };
 
@@ -1143,6 +1237,18 @@ public:
         previewState.previewedRegion.store (nullptr);
     }
 
+    void mouseDoubleClick (const MouseEvent&) override
+    {
+        // set the dim flag on our region's audio modification when double clicked
+        auto audioModification = playbackRegion.getAudioModification<ARADemoPluginAudioModification>();
+        audioModification->setDimmed (! audioModification->isDimmed());
+
+        // send a content change notification for the modification and all associated playback regions
+        audioModification->notifyContentChanged (ARAContentUpdateScopes::samplesAreAffected(), true);
+        for (auto region : audioModification->getPlaybackRegions())
+            region->notifyContentChanged (ARAContentUpdateScopes::samplesAreAffected(), true);
+    }
+
     void changeListenerCallback (ChangeBroadcaster*) override
     {
         repaint();
@@ -1157,6 +1263,11 @@ public:
     {
         if (playbackRegion.getName() != newProperties->name || playbackRegion.getColor() != newProperties->color)
             repaint();
+    }
+
+    void didUpdatePlaybackRegionContent (ARAPlaybackRegion*, ARAContentUpdateScopes) override
+    {
+        repaint();
     }
 
     void onNewSelection (const ARAViewSelection& viewSelection) override
@@ -1174,9 +1285,9 @@ public:
     {
         g.fillAll (convertOptionalARAColour (playbackRegion.getEffectiveColor(), Colours::black));
 
-        const auto audioModification = playbackRegion.getAudioModification();
+        const auto audioModification = playbackRegion.getAudioModification<ARADemoPluginAudioModification>();
 
-        g.setColour (Colours::darkgrey.darker());
+        g.setColour (audioModification->isDimmed() ? Colours::darkgrey.brighter() : Colours::darkgrey.darker());
         if (audioModification->getAudioSource()->isSampleAccessEnabled())
         {
             auto& thumbnail = waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource());
@@ -1195,6 +1306,8 @@ public:
         g.setColour (Colours::white.withMultipliedAlpha (0.9f));
         g.setFont (Font (12.0f));
         g.drawText (convertOptionalARAString (playbackRegion.getEffectiveName()), getLocalBounds(), Justification::topLeft);
+        if (audioModification->isDimmed())
+            g.drawText ("DIMMED", getLocalBounds(), Justification::bottomLeft);
 
         g.setColour (isSelected ? Colours::white : Colours::black);
         g.drawRect (getLocalBounds());
