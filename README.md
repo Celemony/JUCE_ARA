@@ -1,3 +1,18 @@
+# About JUCE_ARA
+
+This repository is an experimental fork of the [JUCE develop branch](https://github.com/juce-framework/JUCE), originally drafting additions by [Celemony](https://www.celemony.com) and [SoundRadix](https://www.soundradix.com) that enabled JUCE to generate [ARA plug-ins](https://github.com/Celemony/ARA_SDK) in the VST3 or AudioUnit format. With JUCE 7, these additions have been reviewed, refactored and properly integrated into JUCE main line.
+
+The develop branch of this fork has been updated to JUCE 7 accordingly, and now merely adds a more complex example of an ARA plug-in which will be useful when debugging ARA Host applications, plus some experimental implementations of draft API from the ARA SDK which will come to JUCE mainline only after they have been finalized in the ARA SDK.
+
+There also are two legacy branches for JUCE 6 users which will not be maintained further: JUCE_6_develop and JUCE_6_condensed. JUCE_6_develop was used for active development and contains all ARA-related changes including some ARA draft features still under development, whereas JUCE_6_condensed is based on JUCE 6 release code and uses only released ARA APIs. JUCE_6_condensed also features a heavily rebased change history for easier merging into JUCE mainline. This makes it also easy to rebase onto any custom fork of JUCE 6 that might already be in use.
+
+Note that Celemony is not endorsing the use of JUCE by providing this fork. The ARA integration in JUCE is merely an adapter, it does not provide any features that would be relevant when using ARA with a different framework. Consequently, the decision whether or not to use JUCE for any given project should be made independently of this fork.
+
+For feedback and questions, please contact Celemony via [ara@celemony.com](mailto:ara@celemony.com?Subject=JUCE%20ARA%20feedback).
+
+
+# Original JUCE documentation
+
 ![alt text](https://assets.juce.com/juce/JUCE_banner_github.png "JUCE")
 
 JUCE is an open-source cross-platform C++ application framework for creating high quality
