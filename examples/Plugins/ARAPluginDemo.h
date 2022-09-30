@@ -1094,6 +1094,7 @@ private:
 
 class PlaybackRegionView : public Component,
                            public ChangeListener,
+                           private ARAAudioSourceListener,
                            private ARAPlaybackRegionListener,
                            private ARAEditorView::Listener
 {
@@ -1105,6 +1106,8 @@ public:
 
         waveformCache.getOrCreateThumbnail (audioSource).addChangeListener (this);
 
+        audioSource->addListener (this);
+
         playbackRegion.addListener (this);
 
         araEditorView.addListener (this);
@@ -1114,10 +1117,13 @@ public:
     {
         araEditorView.removeListener (this);
 
+        auto* audioSource = playbackRegion.getAudioModification()->getAudioSource();
+
+        audioSource->removeListener (this);
+
         playbackRegion.removeListener (this);
 
-        waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource())
-            .removeChangeListener (this);
+        waveformCache.getOrCreateThumbnail (audioSource).removeChangeListener (this);
     }
 
     void mouseDown (const MouseEvent& m) override
@@ -1142,6 +1148,11 @@ public:
         repaint();
     }
 
+    void didEnableAudioSourceSamplesAccess (ARAAudioSource*, bool) override
+    {
+        repaint();
+    }
+
     void willUpdatePlaybackRegionProperties (ARAPlaybackRegion*, ARAPlaybackRegion::PropertiesPtr newProperties) override
     {
         if (playbackRegion.getName() != newProperties->name || playbackRegion.getColor() != newProperties->color)
@@ -1162,15 +1173,26 @@ public:
     void paint (Graphics& g) override
     {
         g.fillAll (convertOptionalARAColour (playbackRegion.getEffectiveColor(), Colours::black));
-        g.setColour (Colours::darkgrey.darker());
-        auto& thumbnail = waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource());
-        thumbnail.drawChannels (g,
-                                getLocalBounds(),
-                                playbackRegion.getStartInAudioModificationTime(),
-                                playbackRegion.getEndInAudioModificationTime(),
-                                1.0f);
 
-        g.setColour (Colours::white.withMultipliedAlpha(0.9));
+        const auto audioModification = playbackRegion.getAudioModification();
+
+        g.setColour (Colours::darkgrey.darker());
+        if (audioModification->getAudioSource()->isSampleAccessEnabled())
+        {
+            auto& thumbnail = waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource());
+            thumbnail.drawChannels (g,
+                                    getLocalBounds(),
+                                    playbackRegion.getStartInAudioModificationTime(),
+                                    playbackRegion.getEndInAudioModificationTime(),
+                                    1.0f);
+        }
+        else
+        {
+            g.setFont (Font (12.0f));
+            g.drawText ("Audio Access Disabled", getLocalBounds(), Justification::centred);
+        }
+
+        g.setColour (Colours::white.withMultipliedAlpha (0.9f));
         g.setFont (Font (12.0f));
         g.drawText (convertOptionalARAString (playbackRegion.getEffectiveName()), getLocalBounds(), Justification::topLeft);
 
