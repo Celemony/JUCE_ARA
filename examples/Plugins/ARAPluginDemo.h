@@ -762,7 +762,8 @@ private:
 };
 
 class PlaybackRegionView : public Component,
-                           public ChangeListener
+                           public ChangeListener,
+                           private ARAPlaybackRegionListener
 {
 public:
     PlaybackRegionView (ARAPlaybackRegion& region, WaveformCache& cache)
@@ -771,10 +772,14 @@ public:
         auto* audioSource = playbackRegion.getAudioModification()->getAudioSource();
 
         waveformCache.getOrCreateThumbnail (audioSource).addChangeListener (this);
+
+        playbackRegion.addListener (this);
     }
 
     ~PlaybackRegionView() override
     {
+        playbackRegion.removeListener (this);
+
         waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource())
             .removeChangeListener (this);
     }
@@ -801,9 +806,15 @@ public:
         repaint();
     }
 
+    void willUpdatePlaybackRegionProperties (ARAPlaybackRegion*, ARAPlaybackRegion::PropertiesPtr newProperties) override
+    {
+        if (playbackRegion.getName() != newProperties->name || playbackRegion.getColor() != newProperties->color)
+            repaint();
+    }
+
     void paint (Graphics& g) override
     {
-        g.fillAll (Colours::white.darker());
+        g.fillAll (convertOptionalARAColour (playbackRegion.getEffectiveColor(), Colours::black));
         g.setColour (Colours::darkgrey.darker());
         auto& thumbnail = waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource());
         thumbnail.drawChannels (g,
@@ -811,6 +822,11 @@ public:
                                 playbackRegion.getStartInAudioModificationTime(),
                                 playbackRegion.getEndInAudioModificationTime(),
                                 1.0f);
+
+        g.setColour (Colours::white.withMultipliedAlpha(0.9));
+        g.setFont (Font (12.0f));
+        g.drawText (convertOptionalARAString (playbackRegion.getEffectiveName()), getLocalBounds(), Justification::topLeft);
+
         g.setColour (Colours::black);
         g.drawRect (getLocalBounds());
     }
@@ -852,6 +868,15 @@ public:
 
     //==============================================================================
     // ARA Document change callback overrides
+    void willUpdateRegionSequenceProperties (ARARegionSequence*, ARARegionSequence::PropertiesPtr newProperties) override
+    {
+        if (regionSequence.getColor() != newProperties->color)
+        {
+            for (auto& pbr : playbackRegionViews)
+                pbr.second->repaint();
+        }
+    }
+
     void willRemovePlaybackRegionFromRegionSequence (ARARegionSequence*,
                                                      ARAPlaybackRegion* playbackRegion) override
     {
