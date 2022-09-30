@@ -980,6 +980,8 @@ public:
     {
         if (regionSequence.getName() != newProperties->name)
             updateTrackName (newProperties->name);
+        if (regionSequence.getColor() != newProperties->color)
+            repaint();
     }
 
     void resized() override
@@ -993,6 +995,13 @@ public:
         g.fillRoundedRectangle (getLocalBounds().reduced (2).toType<float>(), 6.0f);
         g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).contrasting());
         g.drawRoundedRectangle (getLocalBounds().reduced (2).toType<float>(), 6.0f, 1.0f);
+
+        if (auto colour = regionSequence.getColor())
+        {
+            g.setColour( convertARAColour (colour));
+            g.fillRect( getLocalBounds().removeFromTop (16).reduced (6));
+            g.fillRect( getLocalBounds().removeFromBottom (16).reduced (6));
+        }
     }
 
 private:
