@@ -11,24 +11,25 @@
     <GROUP id="{38BAE513-FAF5-0AD7-A598-7A51E0C50CB5}" name="Source">
       <GROUP id="{CDA2CA2E-5333-DEA8-40AE-535794378ABD}" name="Views">
         <FILE id="zyUNuy" name="DocumentView.cpp" compile="1" resource="0"
-              file="Source/DocumentView.cpp"/>
-        <FILE id="v4hOwL" name="DocumentView.h" compile="0" resource="0" file="Source/DocumentView.h"/>
+              file="Source/Views/DocumentView.cpp"/>
+        <FILE id="v4hOwL" name="DocumentView.h" compile="0" resource="0"
+              file="Source/Views/DocumentView.h"/>
         <FILE id="EQ23gh" name="RegionSequenceViewContainer.cpp" compile="1"
-              resource="0" file="Source/RegionSequenceViewContainer.cpp"/>
+              resource="0" file="Source/Views/RegionSequenceViewContainer.cpp"/>
         <FILE id="bsc68x" name="RegionSequenceViewContainer.h" compile="0"
-              resource="0" file="Source/RegionSequenceViewContainer.h"/>
+              resource="0" file="Source/Views/RegionSequenceViewContainer.h"/>
         <FILE id="KZJTR6" name="PlaybackRegionView.cpp" compile="1" resource="0"
-              file="Source/PlaybackRegionView.cpp"/>
+              file="Source/Views/PlaybackRegionView.cpp"/>
         <FILE id="YRS0ck" name="PlaybackRegionView.h" compile="0" resource="0"
-              file="Source/PlaybackRegionView.h"/>
+              file="Source/Views/PlaybackRegionView.h"/>
         <FILE id="OwevFC" name="MusicalContextView.cpp" compile="1" resource="0"
-              file="Source/MusicalContextView.cpp"/>
+              file="Source/Views/MusicalContextView.cpp"/>
         <FILE id="cTWsss" name="MusicalContextView.h" compile="0" resource="0"
-              file="Source/MusicalContextView.h"/>
+              file="Source/Views/MusicalContextView.h"/>
         <FILE id="AclhB6" name="RegionSequenceHeaderView.cpp" compile="1" resource="0"
-              file="Source/RegionSequenceHeaderView.cpp"/>
+              file="Source/Views/RegionSequenceHeaderView.cpp"/>
         <FILE id="OC5DXa" name="RegionSequenceHeaderView.h" compile="0" resource="0"
-              file="Source/RegionSequenceHeaderView.h"/>
+              file="Source/Views/RegionSequenceHeaderView.h"/>
       </GROUP>
       <FILE id="azisMP" name="PluginARAAudioModification.h" compile="0" resource="0"
             file="Source/PluginARAAudioModification.h"/>
