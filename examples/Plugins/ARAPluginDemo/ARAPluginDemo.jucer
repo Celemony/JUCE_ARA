@@ -30,24 +30,23 @@
         <FILE id="OC5DXa" name="RegionSequenceHeaderView.h" compile="0" resource="0"
               file="Source/RegionSequenceHeaderView.h"/>
       </GROUP>
-      <FILE id="azisMP" name="ARAPluginDemoAudioModification.h" compile="0"
-            resource="0" file="Source/ARAPluginDemoAudioModification.h"/>
-      <FILE id="IE9maq" name="ARAPluginDemoAudioProcessor.cpp" compile="1"
-            resource="0" file="Source/ARAPluginDemoAudioProcessor.cpp"/>
-      <FILE id="EmX660" name="ARAPluginDemoAudioProcessor.h" compile="0"
-            resource="0" file="Source/ARAPluginDemoAudioProcessor.h"/>
-      <FILE id="j4IW2r" name="ARAPluginDemoAudioProcessorEditor.cpp" compile="1"
-            resource="0" file="Source/ARAPluginDemoAudioProcessorEditor.cpp"/>
-      <FILE id="EVHkkx" name="ARAPluginDemoAudioProcessorEditor.h" compile="0"
-            resource="0" file="Source/ARAPluginDemoAudioProcessorEditor.h"/>
-      <FILE id="JLZl5I" name="ARAPluginDemoDocumentController.cpp" compile="1"
-            resource="0" file="Source/ARAPluginDemoDocumentController.cpp"/>
-      <FILE id="fmxPsc" name="ARAPluginDemoDocumentController.h" compile="0"
-            resource="0" file="Source/ARAPluginDemoDocumentController.h"/>
-      <FILE id="uxN1gc" name="ARAPluginDemoPlaybackRenderer.cpp" compile="1"
-            resource="0" file="Source/ARAPluginDemoPlaybackRenderer.cpp"/>
-      <FILE id="xqIZnH" name="ARAPluginDemoPlaybackRenderer.h" compile="0"
-            resource="0" file="Source/ARAPluginDemoPlaybackRenderer.h"/>
+      <FILE id="azisMP" name="PluginARAAudioModification.h" compile="0" resource="0"
+            file="Source/PluginARAAudioModification.h"/>
+      <FILE id="IE9maq" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="EmX660" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="j4IW2r" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="EVHkkx" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+      <FILE id="JLZl5I" name="PluginARADocumentController.cpp" compile="1"
+            resource="0" file="Source/PluginARADocumentController.cpp"/>
+      <FILE id="fmxPsc" name="PluginARADocumentController.h" compile="0"
+            resource="0" file="Source/PluginARADocumentController.h"/>
+      <FILE id="uxN1gc" name="PluginARAPlaybackRenderer.cpp" compile="1"
+            resource="0" file="Source/PluginARAPlaybackRenderer.cpp"/>
+      <FILE id="xqIZnH" name="PluginARAPlaybackRenderer.h" compile="0" resource="0"
+            file="Source/PluginARAPlaybackRenderer.h"/>
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
@@ -73,6 +72,28 @@
         <MODULEPATH id="juce_opengl" path="../../../modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../modules"/>
+        <MODULEPATH id="juce_core" path="../../../modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../../modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../modules"/>
+        <MODULEPATH id="juce_events" path="../../../modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../modules"/>
+        <MODULEPATH id="juce_opengl" path="../../../modules"/>
+      </MODULEPATHS>
+    </VS2022>
     <VS2019 targetFolder="Builds/VisualStudio2019">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug"/>
@@ -117,28 +138,6 @@
         <MODULEPATH id="juce_opengl" path="../../../modules"/>
       </MODULEPATHS>
     </VS2017>
-    <VS2015 targetFolder="Builds/VisualStudio2015" extraCompilerFlags="/bigobj">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug"/>
-        <CONFIGURATION isDebug="0" name="Release"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../../../modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../../modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../../modules"/>
-        <MODULEPATH id="juce_audio_plugin_client" path="../../../modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../../modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../../modules"/>
-        <MODULEPATH id="juce_core" path="../../../modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../../modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../../modules"/>
-        <MODULEPATH id="juce_events" path="../../../modules"/>
-        <MODULEPATH id="juce_graphics" path="../../../modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../../modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../../modules"/>
-        <MODULEPATH id="juce_opengl" path="../../../modules"/>
-      </MODULEPATHS>
-    </VS2015>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>

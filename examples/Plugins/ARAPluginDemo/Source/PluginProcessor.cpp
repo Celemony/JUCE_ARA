@@ -1,6 +1,14 @@
-#include "ARAPluginDemoAudioProcessor.h"
-#include "ARAPluginDemoAudioProcessorEditor.h"
-#include "ARAPluginDemoPlaybackRenderer.h"
+/*
+  ==============================================================================
+
+    This file contains the basic framework code for a JUCE plugin processor.
+
+  ==============================================================================
+*/
+
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+#include "PluginARAPlaybackRenderer.h"
 
 //==============================================================================
 ARAPluginDemoAudioProcessor::ARAPluginDemoAudioProcessor()
@@ -14,6 +22,10 @@ ARAPluginDemoAudioProcessor::ARAPluginDemoAudioProcessor()
                      #endif
                        )
 #endif
+{
+}
+
+ARAPluginDemoAudioProcessor::~ARAPluginDemoAudioProcessor()
 {
 }
 
@@ -70,17 +82,20 @@ int ARAPluginDemoAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void ARAPluginDemoAudioProcessor::setCurrentProgram (int /*index*/)
+void ARAPluginDemoAudioProcessor::setCurrentProgram (int index)
 {
+    juce::ignoreUnused (index);
 }
 
-const juce::String ARAPluginDemoAudioProcessor::getProgramName (int /*index*/)
+const juce::String ARAPluginDemoAudioProcessor::getProgramName (int index)
 {
+    juce::ignoreUnused (index);
     return {};
 }
 
-void ARAPluginDemoAudioProcessor::changeProgramName (int /*index*/, const juce::String& /*newName*/)
+void ARAPluginDemoAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
+    juce::ignoreUnused (index, newName);
 }
 
 //==============================================================================
@@ -158,12 +173,14 @@ juce::AudioProcessorEditor* ARAPluginDemoAudioProcessor::createEditor()
 // and the state here in the plug-in instance is limited to view configuration data
 // or other editor settings, of which this example plug-in has none.
 
-void ARAPluginDemoAudioProcessor::getStateInformation (juce::MemoryBlock& /*destData*/)
+void ARAPluginDemoAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    juce::ignoreUnused (destData);
 }
 
-void ARAPluginDemoAudioProcessor::setStateInformation (const void* /*data*/, int /*sizeInBytes*/)
+void ARAPluginDemoAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
+    juce::ignoreUnused (data, sizeInBytes);
 }
 
 //==============================================================================

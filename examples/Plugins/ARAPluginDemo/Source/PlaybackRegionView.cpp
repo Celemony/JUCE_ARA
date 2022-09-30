@@ -1,7 +1,7 @@
 #include "PlaybackRegionView.h"
 #include "DocumentView.h"
-#include "ARAPluginDemoAudioModification.h"
-#include "ARAPluginDemoPlaybackRenderer.h"
+#include "PluginARAAudioModification.h"
+#include "PluginARAPlaybackRenderer.h"
 
 //==============================================================================
 PlaybackRegionView::PlaybackRegionView (RegionSequenceViewContainer& viewContainer, juce::ARAPlaybackRegion* region)

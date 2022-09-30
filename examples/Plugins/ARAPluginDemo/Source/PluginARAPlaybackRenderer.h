@@ -1,11 +1,24 @@
+/*
+  ==============================================================================
+
+    This file was auto-generated!
+
+    It contains the basic framework code for an ARA playback renderer implementation.
+
+  ==============================================================================
+*/
+
 #pragma once
 
-#include <juce_audio_plugin_client/juce_audio_plugin_client.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 
 #include <map>
 
-class PluginDemoPlaybackRenderer : public juce::ARAPlaybackRenderer
+//==============================================================================
+/**
+*/
+class ARAPluginDemoPlaybackRenderer  : public juce::ARAPlaybackRenderer
 {
 public:
     //==============================================================================
@@ -39,18 +52,17 @@ private:
     juce::SharedResourcePointer<SharedTimeSliceThread> sharedTimesliceThread;
 
     //==============================================================================
-    double sampleRate { 44100.0 };
-    int maximumSamplesPerBlock { 4096 };
-    int numChannels { 1 };
+    double sampleRate = 44100.0;
+    int maximumSamplesPerBlock = 4096;
+    int numChannels = 1;
 
     // map of audio sources to buffering audio source readers
     // we'll use them to pull ARA samples from the host as we render
     std::map<juce::ARAAudioSource*, std::unique_ptr<juce::AudioFormatReader>> audioSourceReaders;
+    bool useBufferedAudioSourceReader = true;
 
     // temp buffers to use for summing signals if rendering multiple regions
     std::unique_ptr<juce::AudioBuffer<float>> tempBuffer;
 
-    bool useBufferedAudioSourceReader { true };
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginDemoPlaybackRenderer)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ARAPluginDemoPlaybackRenderer)
 };

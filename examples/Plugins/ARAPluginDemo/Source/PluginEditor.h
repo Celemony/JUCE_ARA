@@ -1,6 +1,15 @@
+/*
+  ==============================================================================
+
+    This file contains the basic framework code for a JUCE plugin editor.
+
+  ==============================================================================
+*/
+
 #pragma once
 
-#include "ARAPluginDemoAudioProcessor.h"
+#include <JuceHeader.h>
+#include "PluginProcessor.h"
 #include "DocumentView.h"
 
 //==============================================================================
@@ -13,6 +22,7 @@ class ARAPluginDemoAudioProcessorEditor   : public juce::AudioProcessorEditor,
 {
 public:
     ARAPluginDemoAudioProcessorEditor (ARAPluginDemoAudioProcessor&);
+    ~ARAPluginDemoAudioProcessorEditor() override;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
@@ -22,6 +32,10 @@ public:
     void timerCallback() override;
 
 private:
+    // This reference is provided as a quick way for your editor to
+    // access the processor object that created it.
+    ARAPluginDemoAudioProcessor& audioProcessor;
+
     std::unique_ptr<DocumentView> documentView;
 
     juce::TooltipWindow tooltip;
