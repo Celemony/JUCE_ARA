@@ -17,7 +17,7 @@ class DocumentView    : public juce::Component,
                         private juce::Timer
 {
 public:
-    DocumentView (juce::ARAEditorView* editorView, const juce::AudioPlayHead::CurrentPositionInfo& positionInfo);
+    DocumentView (juce::ARAEditorView* editorView, const juce::AudioPlayHead::PositionInfo& positionInfo);
     ~DocumentView() override;
 
     // ARAEditorView::Listener overrides
@@ -66,7 +66,7 @@ public:
 
     juce::AudioFormatManager& getAudioFormatManger() { return audioFormatManger; }
 
-    const juce::AudioPlayHead::CurrentPositionInfo& getPlayHeadPositionInfo() const { return positionInfo; }
+    const juce::AudioPlayHead::PositionInfo& getPlayHeadPositionInfo() const { return positionInfo; }
 
     // juce::Component overrides
     void parentHierarchyChanged() override;
@@ -145,8 +145,8 @@ private:
     bool timeRangeIsInvalid { true };
     juce::Range<double> timeRange;
 
-    juce::AudioPlayHead::CurrentPositionInfo lastReportedPosition;
-    const juce::AudioPlayHead::CurrentPositionInfo& positionInfo;
+    double playheadTimePosition {};
+    const juce::AudioPlayHead::PositionInfo& positionInfo;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DocumentView)
 };
