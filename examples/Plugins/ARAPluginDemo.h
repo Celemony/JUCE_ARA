@@ -958,14 +958,28 @@ private:
     TextButton zoomInButton { "+" }, zoomOutButton { "-" };
 };
 
-class TrackHeader : public Component
+class TrackHeader : public Component,
+                    private ARARegionSequenceListener
 {
 public:
-    explicit TrackHeader (const ARARegionSequence& regionSequenceIn) : regionSequence (regionSequenceIn)
+    explicit TrackHeader (ARARegionSequence& regionSequenceIn) : regionSequence (regionSequenceIn)
     {
-        update();
+        updateTrackName (regionSequence.getName());
 
         addAndMakeVisible (trackNameLabel);
+
+        regionSequence.addListener (this);
+    }
+
+    ~TrackHeader() override
+    {
+        regionSequence.removeListener (this);
+    }
+
+    void willUpdateRegionSequenceProperties (ARARegionSequence*, ARARegionSequence::PropertiesPtr newProperties) override
+    {
+        if (regionSequence.getName() != newProperties->name)
+            updateTrackName (newProperties->name);
     }
 
     void resized() override
@@ -982,22 +996,13 @@ public:
     }
 
 private:
-    void update()
+    void updateTrackName (ARA::ARAUtf8String optionalName)
     {
-        const auto getWithDefaultValue =
-            [] (const ARA::PlugIn::OptionalProperty<ARA::ARAUtf8String>& optional, String defaultValue)
-        {
-            if (const ARA::ARAUtf8String value = optional)
-                return String (value);
-
-            return defaultValue;
-        };
-
-        trackNameLabel.setText (getWithDefaultValue (regionSequence.getName(), "No track name"),
+        trackNameLabel.setText (optionalName ? optionalName : "No track name",
                                 NotificationType::dontSendNotification);
     }
 
-    const ARARegionSequence& regionSequence;
+    ARARegionSequence& regionSequence;
     Label trackNameLabel;
 };
 
