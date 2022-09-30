@@ -10,7 +10,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include "DocumentView.h"
+#include "Views/DocumentView.h"
 
 //==============================================================================
 /**
