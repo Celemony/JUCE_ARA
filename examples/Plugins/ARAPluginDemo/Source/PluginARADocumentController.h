@@ -1,16 +1,28 @@
+/*
+  ==============================================================================
+
+    This file was auto-generated!
+
+    It contains the basic framework code for an ARA document controller implementation.
+
+  ==============================================================================
+*/
+
 #pragma once
 
-#include <juce_audio_plugin_client/juce_audio_plugin_client.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 
 //==============================================================================
-// The document controller is the central point of communication between the
-// ARA host and our plug-in. It also serves as factory for any custom subclass
-// in the ARA model graph or for instance roles implementations.
-// In this example we're only customizing the audio modification in the graph
-// and the playback renderer instance role.
-// To ensure proper persistency of our overridden audio modification, we also
-// must customize the store/restore code.
-class ARAPluginDemoDocumentController     : public juce::ARADocumentControllerSpecialisation
+/**
+    The document controller is the central point of communication between the
+    ARA host and our plug-in. It also serves as factory for any custom subclass
+    in the ARA model graph or for instance roles implementations.
+    In this example we're only customizing the audio modification in the graph
+    and the playback renderer instance role.
+    To ensure proper persistency of our overridden audio modification, we also
+    must customize the store/restore code.
+*/
+class ARAPluginDemoDocumentController  : public juce::ARADocumentControllerSpecialisation
 {
 public:
     //==============================================================================

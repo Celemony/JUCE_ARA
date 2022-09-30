@@ -1,8 +1,18 @@
-#include "ARAPluginDemoPlaybackRenderer.h"
-#include "ARAPluginDemoAudioModification.h"
+/*
+  ==============================================================================
+
+    This file was auto-generated!
+
+    It contains the basic framework code for an ARA playback renderer implementation.
+
+  ==============================================================================
+*/
+
+#include "PluginARAPlaybackRenderer.h"
+#include "PluginARAAudioModification.h"
 
 //==============================================================================
-void PluginDemoPlaybackRenderer::prepareToPlay (double sampleRateIn, int maximumSamplesPerBlockIn, int numChannelsIn, juce::AudioProcessor::ProcessingPrecision, AlwaysNonRealtime alwaysNonRealtime)
+void ARAPluginDemoPlaybackRenderer::prepareToPlay (double sampleRateIn, int maximumSamplesPerBlockIn, int numChannelsIn, juce::AudioProcessor::ProcessingPrecision, AlwaysNonRealtime alwaysNonRealtime)
 {
     sampleRate = sampleRateIn;
     maximumSamplesPerBlock = maximumSamplesPerBlockIn;
@@ -10,7 +20,6 @@ void PluginDemoPlaybackRenderer::prepareToPlay (double sampleRateIn, int maximum
     useBufferedAudioSourceReader = alwaysNonRealtime == AlwaysNonRealtime::no;
 
     audioSourceReaders.clear();
-
     for (const auto& playbackRegion : getPlaybackRegions())
     {
         auto audioSource = playbackRegion->getAudioModification()->getAudioSource();
@@ -36,14 +45,14 @@ void PluginDemoPlaybackRenderer::prepareToPlay (double sampleRateIn, int maximum
         tempBuffer.reset();
 }
 
-void PluginDemoPlaybackRenderer::releaseResources()
+void ARAPluginDemoPlaybackRenderer::releaseResources()
 {
     audioSourceReaders.clear();
     tempBuffer.reset();
 }
 
 //==============================================================================
-bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
+bool ARAPluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
                                                        juce::AudioProcessor::Realtime realtime,
                                                        const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept
 {
@@ -56,9 +65,11 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
 
     bool success = true;
     bool didRenderAnyRegion = false;
+
     if (isPlaying)
     {
         const auto blockRange = juce::Range<juce::int64>::withStartAndLength (timeInSamples, numSamples);
+
         for (const auto& playbackRegion : getPlaybackRegions())
         {
             // Evaluate region borders in song time, calculate sample range to render in song time.
@@ -73,7 +84,8 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
             // Evaluate region borders in modification/source time and calculate offset between
             // song and source samples, then clip song samples accordingly
             // (if an actual plug-in supports time stretching, this must be taken into account here).
-            juce::Range<juce::int64> modificationSampleRange { playbackRegion->getStartInAudioModificationSamples(), playbackRegion->getEndInAudioModificationSamples() };
+            juce::Range<juce::int64> modificationSampleRange { playbackRegion->getStartInAudioModificationSamples(),
+                                                               playbackRegion->getEndInAudioModificationSamples() };
             const auto modificationSampleOffset = modificationSampleRange.getStart() - playbackSampleRange.getStart();
 
             renderRange = renderRange.getIntersectionWith (modificationSampleRange.movedToStartAt (playbackSampleRange.getStart()));
@@ -134,6 +146,7 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
 
                 const int endInBuffer = startInBuffer + numSamplesToRead;
                 const int remainingSamples = numSamples - endInBuffer;
+
                 if (remainingSamples != 0)
                     buffer.clear (endInBuffer, remainingSamples);
 
@@ -142,7 +155,6 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
-    // If no playback or no region did intersect, clear buffer now.
     if (! didRenderAnyRegion)
         buffer.clear();
 

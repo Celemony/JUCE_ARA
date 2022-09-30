@@ -1,4 +1,13 @@
-#include "ARAPluginDemoAudioProcessorEditor.h"
+/*
+  ==============================================================================
+
+    This file contains the basic framework code for a JUCE plugin editor.
+
+  ==============================================================================
+*/
+
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
 #include "ARA_Library/Utilities/ARATimelineConversion.h"
 
 static const juce::Identifier showOnlySelectedId = "show_only_selected";
@@ -9,6 +18,7 @@ static juce::ValueTree editorDefaultSettings (JucePlugin_Name "_defaultEditorSet
 ARAPluginDemoAudioProcessorEditor::ARAPluginDemoAudioProcessorEditor (ARAPluginDemoAudioProcessor& p)
     : AudioProcessorEditor (&p),
       AudioProcessorEditorARAExtension (&p),
+      audioProcessor (p),
       tooltip (this)
 {
     if (isARAEditorView())
@@ -72,6 +82,10 @@ ARAPluginDemoAudioProcessorEditor::ARAPluginDemoAudioProcessorEditor (ARAPluginD
     // for proper view embedding, ARA plug-ins must be resizable
     setResizeLimits (500, 200, 32768, 32768);
     setResizable (true, false);
+}
+
+ARAPluginDemoAudioProcessorEditor::~ARAPluginDemoAudioProcessorEditor()
+{
 }
 
 //==============================================================================

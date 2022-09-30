@@ -1,6 +1,14 @@
+/*
+  ==============================================================================
+
+    This file contains the basic framework code for a JUCE plugin processor.
+
+  ==============================================================================
+*/
+
 #pragma once
 
-#include <juce_audio_plugin_client/juce_audio_plugin_client.h>
+#include <JuceHeader.h>
 
 //==============================================================================
 /**
@@ -12,12 +20,15 @@
     use ARA audio modification state, e.g. how it can be shared across multiple
     ARA playback regions if desired.
 */
-class ARAPluginDemoAudioProcessor     : public juce::AudioProcessor,
-                                        public juce::AudioProcessorARAExtension
+class ARAPluginDemoAudioProcessor  : public juce::AudioProcessor
+                            #if JucePlugin_Enable_ARA
+                             , public juce::AudioProcessorARAExtension
+                            #endif
 {
 public:
     //==============================================================================
     ARAPluginDemoAudioProcessor();
+    ~ARAPluginDemoAudioProcessor() override;
 
     // Getter of current playback state for the UI
     const juce::AudioPlayHead::PositionInfo& getPositionInfo() { return positionInfo; }

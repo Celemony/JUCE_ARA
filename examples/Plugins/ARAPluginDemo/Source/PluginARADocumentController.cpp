@@ -1,6 +1,16 @@
-#include "ARAPluginDemoDocumentController.h"
-#include "ARAPluginDemoAudioModification.h"
-#include "ARAPluginDemoPlaybackRenderer.h"
+/*
+  ==============================================================================
+
+    This file was auto-generated!
+
+    It contains the basic framework code for an ARA document controller implementation.
+
+  ==============================================================================
+*/
+
+#include "PluginARADocumentController.h"
+#include "PluginARAAudioModification.h"
+#include "PluginARAPlaybackRenderer.h"
 
 //==============================================================================
 juce::ARAAudioModification* ARAPluginDemoDocumentController::doCreateAudioModification (juce::ARAAudioSource* audioSource, ARA::ARAAudioModificationHostRef hostRef, const juce::ARAAudioModification* optionalModificationToClone) noexcept
@@ -10,7 +20,7 @@ juce::ARAAudioModification* ARAPluginDemoDocumentController::doCreateAudioModifi
 
 juce::ARAPlaybackRenderer* ARAPluginDemoDocumentController::doCreatePlaybackRenderer() noexcept
 {
-    return new PluginDemoPlaybackRenderer (getDocumentController());
+    return new ARAPluginDemoPlaybackRenderer (getDocumentController());
 }
 
 //==============================================================================
