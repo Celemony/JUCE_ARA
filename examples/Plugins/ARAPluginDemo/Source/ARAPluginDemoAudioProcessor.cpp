@@ -86,7 +86,7 @@ void ARAPluginDemoAudioProcessor::changeProgramName (int /*index*/, const juce::
 //==============================================================================
 void ARAPluginDemoAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    if (prepareToPlayForARA (sampleRate, samplesPerBlock, getMainBusNumOutputChannels()))
+    if (prepareToPlayForARA (sampleRate, samplesPerBlock, getMainBusNumOutputChannels(), AudioProcessor::ProcessingPrecision::singlePrecision))
         return;
 
     // since we're always bypassing without ARA, we do not need to handle additional resources here
@@ -133,7 +133,7 @@ void ARAPluginDemoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (auto playhead = getPlayHead())
         positionInfo = playhead->getPosition().orFallback (juce::AudioPlayHead::PositionInfo());
 
-    if (processBlockForARA (buffer, isNonRealtime(), positionInfo))
+    if (processBlockForARA (buffer, isRealtime(), positionInfo))
         return;
 
     // This example plug-in requires to be used with ARA - we just pass through otherwise.

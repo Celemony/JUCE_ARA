@@ -1,5 +1,7 @@
 #pragma once
 
+#include <juce_audio_formats/juce_audio_formats.h>
+
 #include "MusicalContextView.h"
 
 class RegionSequenceViewContainer;
@@ -30,8 +32,8 @@ public:
 
     // ARA getters
     juce::ARAEditorView* getARAEditorView() const noexcept { return editorView; }
-    juce::ARADocumentController* getDocumentController() const noexcept { return getARAEditorView()->getDocumentController(); }
-    juce::ARADocument* getDocument() const noexcept { return getDocumentController()->getDocument(); }
+    ARA::PlugIn::DocumentController* getDocumentController() const noexcept { return getARAEditorView()->getDocumentController(); }
+    juce::ARADocument* getDocument() const noexcept { return juce::ARADocumentControllerSpecialisation::getSpecialisedDocumentController(getDocumentController())->getDocument(); }
 
     // total time range
     juce::Range<double> getTimeRange() const { return timeRange; }

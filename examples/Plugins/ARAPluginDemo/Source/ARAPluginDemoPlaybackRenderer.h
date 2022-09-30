@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
+#include <juce_audio_formats/juce_audio_formats.h>
 
 #include <map>
 
@@ -11,11 +12,17 @@ public:
     using juce::ARAPlaybackRenderer::ARAPlaybackRenderer;
 
     //==============================================================================
-    void prepareToPlay (double sampleRate, int maximumSamplesPerBlock, int numChannels, bool alwaysNonRealtime) override;
+    void prepareToPlay (double sampleRate,
+                        int maximumSamplesPerBlock,
+                        int numChannels,
+                        juce::AudioProcessor::ProcessingPrecision,
+                        AlwaysNonRealtime alwaysNonRealtime) override;
     void releaseResources() override;
 
     //==============================================================================
-    bool processBlock (juce::AudioBuffer<float>& buffer, bool isNonRealtime, const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept override;
+    bool processBlock (juce::AudioBuffer<float>& buffer,
+                       juce::AudioProcessor::Realtime realtime,
+                       const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept override;
 
 private:
     //==============================================================================

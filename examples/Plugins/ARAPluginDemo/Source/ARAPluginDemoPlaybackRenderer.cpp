@@ -2,12 +2,12 @@
 #include "ARAPluginDemoAudioModification.h"
 
 //==============================================================================
-void PluginDemoPlaybackRenderer::prepareToPlay (double rate, int maxSamplesPerBlock, int numChans, bool alwaysNonRealtime)
+void PluginDemoPlaybackRenderer::prepareToPlay (double sampleRateIn, int maximumSamplesPerBlockIn, int numChannelsIn, juce::AudioProcessor::ProcessingPrecision, AlwaysNonRealtime alwaysNonRealtime)
 {
-    sampleRate = rate;
-    maximumSamplesPerBlock = maxSamplesPerBlock;
-    numChannels = numChans;
-    useBufferedAudioSourceReader = ! alwaysNonRealtime;
+    sampleRate = sampleRateIn;
+    maximumSamplesPerBlock = maximumSamplesPerBlockIn;
+    numChannels = numChannelsIn;
+    useBufferedAudioSourceReader = alwaysNonRealtime == AlwaysNonRealtime::no;
 
     audioSourceReaders.clear();
 
@@ -43,12 +43,14 @@ void PluginDemoPlaybackRenderer::releaseResources()
 }
 
 //==============================================================================
-bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer, bool isNonRealtime, const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept
+bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
+                                                       juce::AudioProcessor::Realtime realtime,
+                                                       const juce::AudioPlayHead::PositionInfo& positionInfo) noexcept
 {
     const auto numSamples = buffer.getNumSamples();
     jassert (numSamples <= maximumSamplesPerBlock);
     jassert (numChannels == buffer.getNumChannels());
-    jassert (isNonRealtime || useBufferedAudioSourceReader);
+    jassert (realtime == juce::AudioProcessor::Realtime::no || useBufferedAudioSourceReader);
     const auto timeInSamples = positionInfo.getTimeInSamples().orFallback (0);
     const auto isPlaying = positionInfo.getIsPlaying();
 
@@ -62,7 +64,8 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
             // Evaluate region borders in song time, calculate sample range to render in song time.
             // Note that this example does not use head- or tailtime, so the includeHeadAndTail
             // parameter is set to false here - this might need to be adjusted in actual plug-ins.
-            const auto playbackSampleRange = playbackRegion->getSampleRange (sampleRate, false);
+            const auto playbackSampleRange = playbackRegion->getSampleRange (sampleRate,
+                                                                             juce::ARAPlaybackRegion::IncludeHeadAndTail::no);
             auto renderRange = blockRange.getIntersectionWith (playbackSampleRange);
             if (renderRange.isEmpty())
                 continue;
@@ -96,7 +99,7 @@ bool PluginDemoPlaybackRenderer::processBlock (juce::AudioBuffer<float>& buffer,
             {
                 jassert (dynamic_cast<juce::BufferingAudioReader*> (reader.get()) != nullptr);
                 auto bufferingReader = static_cast<juce::BufferingAudioReader*> (reader.get());
-                bufferingReader->setReadTimeout (isNonRealtime ? 100 : 0);
+                bufferingReader->setReadTimeout ((realtime == juce::AudioProcessor::Realtime::no) ? 100 : 0);
             }
 
             // Calculate buffer offsets.
