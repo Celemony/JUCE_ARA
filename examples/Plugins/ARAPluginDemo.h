@@ -17,6 +17,9 @@
   ==============================================================================
 */
 
+#include <ARA_Library/Utilities/ARAPitchInterpretation.h>
+#include <ARA_Library/Utilities/ARATimelineConversion.h>
+
 /*******************************************************************************
  The block below describes the properties of this PIP. A PIP is a short snippet
  of code that can be read by the Projucer and used to generate a JUCE project.
@@ -749,7 +752,191 @@ private:
     static constexpr auto minimumZoom = 10.0;
 
     double zoomLevelPixelPerSecond = minimumZoom * 4;
+};
 
+class RulersView : public Component,
+                   private TimeToViewScalingListener,
+                   private ARAMusicalContextListener
+{
+public:
+    RulersView (TimeToViewScaling& scaling, ARADocument& document)
+        : timeToViewScaling (scaling), araDocument (document)
+    {
+        timeToViewScaling.addListener (this);
+    }
+
+    ~RulersView()
+    {
+        timeToViewScaling.removeListener (this);
+
+        selectMusicalContext (nullptr);
+    }
+
+    void paint (Graphics& g) override
+    {
+        auto drawBounds = g.getClipBounds();
+        const auto drawStartTime = timeToViewScaling.getTimeForX (drawBounds.getX());
+        const auto drawEndTime = timeToViewScaling.getTimeForX (drawBounds.getRight());
+
+        const auto bounds = getLocalBounds();
+
+        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+        g.fillRect (bounds);
+        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).contrasting());
+        g.drawRect (bounds);
+
+        const auto rulerHeight = bounds.getHeight() / 3;
+        g.drawRect (drawBounds.getX(), rulerHeight, drawBounds.getRight(), rulerHeight);
+        g.setFont (Font (12.0f));
+
+        const int lightLineWidth = 1;
+        const int heavyLineWidth = 3;
+
+        if (selectedMusicalContext != nullptr)
+        {
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempoReader (selectedMusicalContext);
+            const ARA::TempoConverter<decltype (tempoReader)> tempoConverter (tempoReader);
+
+            // chord ruler: one rect per chord, skipping empty "no chords"
+            const auto chordBounds = drawBounds.removeFromTop (rulerHeight);
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chordsReader (selectedMusicalContext);
+            if (tempoReader && chordsReader)
+            {
+                const ARA::ChordInterpreter interpreter (true);
+                for (auto itChord = chordsReader.begin(); itChord != chordsReader.end(); ++itChord)
+                {
+                    if (interpreter.isNoChord (*itChord))
+                        continue;
+
+                    const auto chordStartTime = (itChord == chordsReader.begin()) ? 0 : tempoConverter.getTimeForQuarter (itChord->position);
+                    if (chordStartTime >= drawEndTime)
+                        break;
+                    auto chordRect = chordBounds;
+                    chordRect.setLeft (timeToViewScaling.getXForTime (chordStartTime));
+
+                    if (std::next (itChord) != chordsReader.end())
+                    {
+                        const auto nextChordStartTime = tempoConverter.getTimeForQuarter (std::next (itChord)->position);
+                        if (nextChordStartTime < drawStartTime)
+                            continue;
+                        chordRect.setRight (timeToViewScaling.getXForTime (nextChordStartTime));
+                    }
+
+                    g.drawRect (chordRect);
+                    g.drawText (convertARAString (interpreter.getNameForChord (*itChord).c_str()), chordRect.withTrimmedLeft (2), Justification::centredLeft);
+                }
+            }
+
+            // beat ruler: evaluates tempo and bar signatures to draw a line for each beat
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> barSignaturesReader (selectedMusicalContext);
+            if (barSignaturesReader)
+            {
+                const ARA::BarSignaturesConverter<decltype (barSignaturesReader)> barSignaturesConverter (barSignaturesReader);
+                RectangleList<int> rects;
+                const double beatStart = barSignaturesConverter.getBeatForQuarter (tempoConverter.getQuarterForTime (drawStartTime));
+                const double beatEnd = barSignaturesConverter.getBeatForQuarter (tempoConverter.getQuarterForTime (drawEndTime));
+                const int endBeat = roundToInt (std::floor (beatEnd));
+                for (int beat = roundToInt (std::ceil (beatStart)); beat <= endBeat; ++beat)
+                {
+                    const auto quarterPos = barSignaturesConverter.getQuarterForBeat (beat);
+                    const int x = timeToViewScaling.getXForTime (tempoConverter.getTimeForQuarter (quarterPos));
+                    const auto barSignature = barSignaturesConverter.getBarSignatureForQuarter (quarterPos);
+                    const int lineWidth = (quarterPos == barSignature.position) ? heavyLineWidth : lightLineWidth;
+                    const int beatsSinceBarStart = roundToInt( barSignaturesConverter.getBeatDistanceFromBarStartForQuarter (quarterPos));
+                    const int lineHeight = (beatsSinceBarStart == 0) ? rulerHeight : rulerHeight / 2;
+                    rects.addWithoutMerging (Rectangle<int> (x - lineWidth / 2, 2 * rulerHeight - lineHeight, lineWidth, lineHeight));
+                }
+                g.fillRectList (rects);
+            }
+        }
+
+        // time ruler: one tick for each second
+        {
+            RectangleList<int> rects;
+            for (auto time = std::floor (drawStartTime); time <= drawEndTime; time += 1.0)
+            {
+                const int lineWidth = (std::fmod (time, 60.0) <= 0.001) ? heavyLineWidth : lightLineWidth;
+                const int lineHeight = (std::fmod (time, 10.0) <= 0.001) ? rulerHeight : rulerHeight / 2;
+                rects.addWithoutMerging (Rectangle<int> (timeToViewScaling.getXForTime (time) - lineWidth / 2,
+                                                         bounds.getHeight() - lineHeight,
+                                                         lineWidth,
+                                                         lineHeight));
+            }
+            g.fillRectList (rects);
+        }
+    }
+
+    void selectMusicalContext (ARAMusicalContext* newSelectedMusicalContext)
+    {
+        if (selectedMusicalContext == newSelectedMusicalContext)
+            return;
+
+        if (selectedMusicalContext != nullptr)
+            selectedMusicalContext->removeListener (this);
+
+        if (newSelectedMusicalContext != nullptr)
+            newSelectedMusicalContext->addListener (this);
+
+        selectedMusicalContext = newSelectedMusicalContext;
+        repaint();
+    }
+
+    void zoomLevelChanged (double) override
+    {
+        repaint();
+    }
+
+    void doUpdateMusicalContextContent (ARAMusicalContext*, ARAContentUpdateScopes) override
+    {
+        repaint();
+    }
+
+private:
+    TimeToViewScaling& timeToViewScaling;
+    ARADocument& araDocument;
+    ARAMusicalContext* selectedMusicalContext = nullptr;
+};
+
+class RulersHeader : public Component
+{
+public:
+    RulersHeader()
+    {
+        chordsLabel.setText ("Chords", NotificationType::dontSendNotification);
+        addAndMakeVisible (chordsLabel);
+
+        barsLabel.setText ("Bars", NotificationType::dontSendNotification);
+        addAndMakeVisible (barsLabel);
+
+        timeLabel.setText ("Time", NotificationType::dontSendNotification);
+        addAndMakeVisible (timeLabel);
+    }
+
+    void resized() override
+    {
+        auto bounds = getLocalBounds();
+        const auto rulerHeight = bounds.getHeight() / 3;
+        chordsLabel.setBounds (bounds.removeFromTop (rulerHeight));
+        barsLabel.setBounds (bounds.removeFromTop (rulerHeight));
+        timeLabel.setBounds (bounds.removeFromTop (rulerHeight));
+    }
+
+    void paint (Graphics& g) override
+    {
+        auto bounds = getLocalBounds();
+        const auto rulerHeight = bounds.getHeight() / 3;
+        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+        g.fillRect (bounds);
+        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).contrasting());
+        g.drawRect (bounds);
+        bounds.removeFromTop (rulerHeight);
+        g.drawRect (bounds.removeFromTop (rulerHeight));
+    }
+
+private:
+    Label chordsLabel;
+    Label barsLabel;
+    Label timeLabel;
 };
 
 //==============================================================================
@@ -1272,8 +1459,16 @@ public:
     DocumentView (ARAEditorView& editorView, PlayHeadState& playHeadState)
         : araEditorView (editorView),
           araDocument (*editorView.getDocumentController()->getDocument<ARADocument>()),
+          rulersView (timeToViewScaling, araDocument),
           overlay (playHeadState, timeToViewScaling)
     {
+        if (araDocument.getMusicalContexts().size() > 0)
+            selectMusicalContext (araDocument.getMusicalContexts().front());
+
+        addAndMakeVisible (rulersHeader);
+
+        viewport.content.addAndMakeVisible (rulersView);
+
         viewport.onVisibleAreaChanged = [this] (const auto& r)
         {
             viewportHeightOffset = r.getY();
@@ -1305,6 +1500,12 @@ public:
 
     //==============================================================================
     // ARADocumentListener overrides
+    void didAddMusicalContextToDocument (ARADocument*, ARAMusicalContext* musicalContext) override
+    {
+        if (selectedMusicalContext == nullptr)
+            selectMusicalContext (musicalContext);
+    }
+
     void didReorderRegionSequencesInDocument (ARADocument*) override
     {
         invalidateRegionSequenceViews();
@@ -1336,6 +1537,16 @@ public:
     // ARAEditorView::Listener overrides
     void onNewSelection (const ARAViewSelection& viewSelection) override
     {
+        ARAMusicalContext* newSelectedMusicalContext = nullptr;
+        if (! viewSelection.getRegionSequences().empty())
+            newSelectedMusicalContext = viewSelection.getRegionSequences<ARARegionSequence>().front()->getMusicalContext();
+        else if (! viewSelection.getPlaybackRegions().empty())
+            newSelectedMusicalContext = viewSelection.getPlaybackRegions<ARAPlaybackRegion>().front()->getRegionSequence()->getMusicalContext();
+
+        // if no context used yet and selection does not yield a new one, use the first musical context in the document
+        if (newSelectedMusicalContext != nullptr && newSelectedMusicalContext != selectedMusicalContext)
+            selectMusicalContext (newSelectedMusicalContext);
+
         if (const auto timeRange = viewSelection.getTimeRange())
             overlay.setSelectedTimeRange (*timeRange);
         else
@@ -1357,16 +1568,18 @@ public:
     void resized() override
     {
         auto bounds = getLocalBounds();
-        const auto bottomControlsBounds = bounds.removeFromBottom (40);
-        const auto headerBounds = bounds.removeFromLeft (headerWidth).reduced (2);
 
-        zoomControls.setBounds (bottomControlsBounds);
+        zoomControls.setBounds (bounds.removeFromBottom (40));
+
+        auto headerBounds = bounds.removeFromLeft (headerWidth);
+        rulersHeader.setBounds (headerBounds.removeFromTop (trackHeight));
         layOutVertically (headerBounds, trackHeaders, viewportHeightOffset);
+
         viewport.setBounds (bounds);
         overlay.setBounds (bounds.reduced (1));
 
         const auto width = jmax (timeToViewScaling.getXForTime (timelineLength), viewport.getWidth());
-        const auto height = (int) regionSequenceViews.size() * trackHeight;
+        const auto height = (int) (regionSequenceViews.size() + 1) * trackHeight;
         viewport.content.setSize (width, height);
         viewport.content.resized();
     }
@@ -1390,6 +1603,12 @@ private:
         ARA::ARAInt32 orderIndex;
         ARARegionSequence* sequence;
     };
+
+    void selectMusicalContext (ARAMusicalContext* newSelectedMusicalContext)
+    {
+        selectedMusicalContext = newSelectedMusicalContext;
+        rulersView.selectMusicalContext (selectedMusicalContext);
+    }
 
     void zoom (double factor)
     {
@@ -1492,11 +1711,15 @@ private:
     TimeToViewScaling timeToViewScaling;
     double timelineLength = 0.0;
 
+    ARAMusicalContext* selectedMusicalContext = nullptr;
+
     std::vector<ARARegionSequence*> hiddenRegionSequences;
 
     WaveformCache waveformCache;
     std::map<RegionSequenceViewKey, std::unique_ptr<TrackHeader>> trackHeaders;
     std::map<RegionSequenceViewKey, std::unique_ptr<RegionSequenceView>> regionSequenceViews;
+    RulersHeader rulersHeader;
+    RulersView rulersView;
     VerticalLayoutViewport viewport;
     OverlayComponent overlay;
     ZoomControls zoomControls;
