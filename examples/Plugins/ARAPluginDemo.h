@@ -1115,8 +1115,9 @@ class DocumentView  : public Component,
                       private ARAEditorView::Listener
 {
 public:
-    explicit DocumentView (ARADocument& document, PlayHeadState& playHeadState)
-        : araDocument (document),
+    DocumentView (ARAEditorView& editorView, PlayHeadState& playHeadState)
+        : araEditorView (editorView),
+          araDocument (*editorView.getDocumentController()->getDocument<ARADocument>()),
           overlay (playHeadState)
     {
         viewport.onVisibleAreaChanged = [this] (const auto& r)
@@ -1136,11 +1137,16 @@ public:
         addAndMakeVisible (zoomControls);
 
         invalidateRegionSequenceViews();
+
         araDocument.addListener (this);
+
+        araEditorView.addListener (this);
     }
 
     ~DocumentView() override
     {
+        araEditorView.removeListener (this);
+
         araDocument.removeListener (this);
     }
 
@@ -1332,6 +1338,7 @@ private:
 
     static constexpr auto minimumZoom = 10.0;
 
+    ARAEditorView& araEditorView;
     ARADocument& araDocument;
 
     bool regionSequenceViewsAreValid = false;
@@ -1358,10 +1365,7 @@ public:
           AudioProcessorEditorARAExtension (&p)
     {
         if (auto* editorView = getARAEditorView())
-        {
-            auto* document = ARADocumentControllerSpecialisation::getSpecialisedDocumentController(editorView->getDocumentController())->getDocument();
-            documentView = std::make_unique<DocumentView> (*document, p.playHeadState );
-        }
+            documentView = std::make_unique<DocumentView> (*editorView, p.playHeadState);
 
         addAndMakeVisible (documentView.get());
 
