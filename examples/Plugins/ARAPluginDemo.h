@@ -1190,8 +1190,10 @@ public:
     {
     }
 
-    void onHideRegionSequences (const std::vector<ARARegionSequence*>&) override
+    void onHideRegionSequences (std::vector<ARARegionSequence*> const& regionSequences) override
     {
+        hiddenRegionSequences = regionSequences;
+        invalidateRegionSequenceViews();
     }
 
     //==============================================================================
@@ -1333,7 +1335,8 @@ private:
             trackHeaders.clear();
 
             for (auto* regionSequence : araDocument.getRegionSequences())
-                addTrackViews (regionSequence);
+                if (std::find (hiddenRegionSequences.begin(), hiddenRegionSequences.end(), regionSequence) == hiddenRegionSequences.end())
+                    addTrackViews (regionSequence);
 
             update();
 
@@ -1349,6 +1352,8 @@ private:
     bool regionSequenceViewsAreValid = false;
     double timelineLength = 0.0;
     double zoomLevelPixelPerSecond = minimumZoom * 4;
+
+    std::vector<ARARegionSequence*> hiddenRegionSequences;
 
     WaveformCache waveformCache;
     std::map<RegionSequenceViewKey, std::unique_ptr<TrackHeader>> trackHeaders;
