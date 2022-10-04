@@ -984,20 +984,28 @@ private:
 };
 
 class TrackHeader : public Component,
-                    private ARARegionSequenceListener
+                    private ARARegionSequenceListener,
+                    private ARAEditorView::Listener
 {
 public:
-    explicit TrackHeader (ARARegionSequence& regionSequenceIn) : regionSequence (regionSequenceIn)
+    TrackHeader (ARAEditorView& editorView, ARARegionSequence& regionSequenceIn)
+        : araEditorView (editorView), regionSequence (regionSequenceIn)
     {
         updateTrackName (regionSequence.getName());
+
+        onNewSelection (araEditorView.getViewSelection());
 
         addAndMakeVisible (trackNameLabel);
 
         regionSequence.addListener (this);
+
+        araEditorView.addListener (this);
     }
 
     ~TrackHeader() override
     {
+        araEditorView.removeListener (this);
+
         regionSequence.removeListener (this);
     }
 
@@ -1016,9 +1024,10 @@ public:
 
     void paint (Graphics& g) override
     {
-        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+        auto backgroundColour = getLookAndFeel().findColour (ResizableWindow::backgroundColourId);
+        g.setColour (isSelected ? backgroundColour.brighter() : (backgroundColour));
         g.fillRoundedRectangle (getLocalBounds().reduced (2).toType<float>(), 6.0f);
-        g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).contrasting());
+        g.setColour (backgroundColour.contrasting());
         g.drawRoundedRectangle (getLocalBounds().reduced (2).toType<float>(), 6.0f, 1.0f);
 
         if (auto colour = regionSequence.getColor())
@@ -1029,6 +1038,17 @@ public:
         }
     }
 
+    void onNewSelection (const ARAViewSelection& viewSelection) override
+    {
+        const auto& selectedRegionSequences = viewSelection.getRegionSequences();
+        const bool selected = std::find (selectedRegionSequences.begin(), selectedRegionSequences.end(), &regionSequence) != selectedRegionSequences.end();
+        if (selected != isSelected)
+        {
+            isSelected = selected;
+            repaint();
+        }
+    }
+
 private:
     void updateTrackName (ARA::ARAUtf8String optionalName)
     {
@@ -1036,8 +1056,10 @@ private:
                                 NotificationType::dontSendNotification);
     }
 
+    ARAEditorView& araEditorView;
     ARARegionSequence& regionSequence;
     Label trackNameLabel;
+    bool isSelected = false;
 };
 
 constexpr auto trackHeight = 60;
@@ -1330,7 +1352,7 @@ private:
 
         auto& trackHeader = insertIntoMap (trackHeaders,
                                            RegionSequenceViewKey { regionSequence },
-                                           std::make_unique<TrackHeader> (*regionSequence));
+                                           std::make_unique<TrackHeader> (araEditorView, *regionSequence));
 
         addAndMakeVisible (trackHeader);
     }
