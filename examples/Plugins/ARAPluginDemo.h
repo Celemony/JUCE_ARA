@@ -1068,7 +1068,7 @@ public:
 
     void resized() override
     {
-        doResize();
+        updatePlayHeadPosition();
     }
 
     void setZoomLevel (double pixelPerSecondIn)
@@ -1082,7 +1082,7 @@ public:
     }
 
 private:
-    void doResize()
+    void updatePlayHeadPosition()
     {
         if (playHeadState.isPlaying.load())
         {
@@ -1100,7 +1100,7 @@ private:
 
     void timerCallback() override
     {
-        doResize();
+        updatePlayHeadPosition();
     }
 
     static constexpr double markerWidth = 2.0;
@@ -1200,7 +1200,7 @@ public:
         zoomControls.setBounds (bottomControlsBounds);
         layOutVertically (headerBounds, trackHeaders, viewportHeightOffset);
         viewport.setBounds (bounds);
-        overlay.setBounds (bounds);
+        overlay.setBounds (bounds.reduced (1));
     }
 
     //==============================================================================
