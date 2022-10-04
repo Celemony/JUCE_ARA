@@ -393,7 +393,7 @@ private:
 };
 
 class EditorRenderer  : public ARAEditorRenderer,
-                        private ARARegionSequence::Listener
+                        private ARARegionSequenceListener
 {
 public:
     EditorRenderer (ARA::PlugIn::DocumentController* documentController, const PreviewState* previewStateIn)
@@ -712,7 +712,7 @@ private:
 };
 
 //==============================================================================
-struct WaveformCache : private ARAAudioSource::Listener
+struct WaveformCache : private ARAAudioSourceListener
 {
     WaveformCache() : thumbnailCache (20)
     {
@@ -828,9 +828,9 @@ private:
 };
 
 class RegionSequenceView : public Component,
-                           public ARARegionSequence::Listener,
                            public ChangeBroadcaster,
-                           private ARAPlaybackRegion::Listener
+                           private ARARegionSequenceListener,
+                           private ARAPlaybackRegionListener
 {
 public:
     RegionSequenceView (ARARegionSequence& rs, WaveformCache& cache, double pixelPerSec)
@@ -1125,7 +1125,7 @@ private:
 
 class DocumentView  : public Component,
                       public ChangeListener,
-                      private ARADocument::Listener,
+                      private ARADocumentListener,
                       private ARAEditorView::Listener
 {
 public:
@@ -1161,7 +1161,7 @@ public:
     }
 
     //==============================================================================
-    // ARADocument::Listener overrides
+    // ARADocumentListener overrides
     void didReorderRegionSequencesInDocument (ARADocument*) override
     {
         invalidateRegionSequenceViews();
