@@ -1133,8 +1133,6 @@ public:
         : araDocument (document),
           overlay (playHeadState)
     {
-        addAndMakeVisible (tracksBackground);
-
         viewport.onVisibleAreaChanged = [this] (const auto& r)
         {
             viewportHeightOffset = r.getY();
@@ -1213,7 +1211,6 @@ public:
 
         zoomControls.setBounds (bottomControlsBounds);
         layOutVertically (headerBounds, trackHeaders, viewportHeightOffset);
-        tracksBackground.setBounds (bounds);
         viewport.setBounds (bounds);
         overlay.setBounds (bounds);
     }
@@ -1348,14 +1345,6 @@ private:
         }
     }
 
-    class TracksBackgroundComponent : public Component
-    {
-        void paint (Graphics& g) override
-        {
-            g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).brighter());
-        }
-    };
-
     static constexpr auto minimumZoom = 10.0;
 
     ARADocument& araDocument;
@@ -1365,7 +1354,6 @@ private:
     double zoomLevelPixelPerSecond = minimumZoom * 4;
 
     WaveformCache waveformCache;
-    TracksBackgroundComponent tracksBackground;
     std::map<RegionSequenceViewKey, std::unique_ptr<TrackHeader>> trackHeaders;
     std::map<RegionSequenceViewKey, std::unique_ptr<RegionSequenceView>> regionSequenceViews;
     VerticalLayoutViewport viewport;
