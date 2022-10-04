@@ -763,21 +763,26 @@ private:
 
 class PlaybackRegionView : public Component,
                            public ChangeListener,
-                           private ARAPlaybackRegionListener
+                           private ARAPlaybackRegionListener,
+                           private ARAEditorView::Listener
 {
 public:
-    PlaybackRegionView (ARAPlaybackRegion& region, WaveformCache& cache)
-        : playbackRegion (region), waveformCache (cache)
+    PlaybackRegionView (ARAEditorView& editorView, ARAPlaybackRegion& region, WaveformCache& cache)
+        : araEditorView (editorView), playbackRegion (region), waveformCache (cache)
     {
         auto* audioSource = playbackRegion.getAudioModification()->getAudioSource();
 
         waveformCache.getOrCreateThumbnail (audioSource).addChangeListener (this);
 
         playbackRegion.addListener (this);
+
+        araEditorView.addListener (this);
     }
 
     ~PlaybackRegionView() override
     {
+        araEditorView.removeListener (this);
+
         playbackRegion.removeListener (this);
 
         waveformCache.getOrCreateThumbnail (playbackRegion.getAudioModification()->getAudioSource())
@@ -812,6 +817,17 @@ public:
             repaint();
     }
 
+    void onNewSelection (const ARAViewSelection& viewSelection) override
+    {
+        const auto& selectedPlaybackRegions = viewSelection.getPlaybackRegions();
+        const bool selected = std::find (selectedPlaybackRegions.begin(), selectedPlaybackRegions.end(), &playbackRegion) != selectedPlaybackRegions.end();
+        if (selected != isSelected)
+        {
+            isSelected = selected;
+            repaint();
+        }
+    }
+
     void paint (Graphics& g) override
     {
         g.fillAll (convertOptionalARAColour (playbackRegion.getEffectiveColor(), Colours::black));
@@ -827,7 +843,7 @@ public:
         g.setFont (Font (12.0f));
         g.drawText (convertOptionalARAString (playbackRegion.getEffectiveName()), getLocalBounds(), Justification::topLeft);
 
-        g.setColour (Colours::black);
+        g.setColour (isSelected ? Colours::white : Colours::black);
         g.drawRect (getLocalBounds());
     }
 
@@ -837,8 +853,10 @@ public:
     }
 
 private:
+    ARAEditorView& araEditorView;
     ARAPlaybackRegion& playbackRegion;
     WaveformCache& waveformCache;
+    bool isSelected = false;
 };
 
 class RegionSequenceView : public Component,
@@ -847,8 +865,8 @@ class RegionSequenceView : public Component,
                            private ARAPlaybackRegionListener
 {
 public:
-    RegionSequenceView (ARARegionSequence& rs, WaveformCache& cache, double pixelPerSec)
-        : regionSequence (rs), waveformCache (cache), zoomLevelPixelPerSecond (pixelPerSec)
+    RegionSequenceView (ARAEditorView& editorView, ARARegionSequence& rs, WaveformCache& cache, double pixelPerSec)
+        : araEditorView (editorView), regionSequence (rs), waveformCache (cache), zoomLevelPixelPerSecond (pixelPerSec)
     {
         regionSequence.addListener (this);
 
@@ -931,7 +949,7 @@ public:
 private:
     void createAndAddPlaybackRegionView (ARAPlaybackRegion* playbackRegion)
     {
-        playbackRegionViews[playbackRegion] = std::make_unique<PlaybackRegionView> (*playbackRegion, waveformCache);
+        playbackRegionViews[playbackRegion] = std::make_unique<PlaybackRegionView> (araEditorView, *playbackRegion, waveformCache);
         playbackRegion->addListener (this);
         addAndMakeVisible (*playbackRegionViews[playbackRegion]);
     }
@@ -949,6 +967,7 @@ private:
         sendChangeMessage();
     }
 
+    ARAEditorView& araEditorView;
     ARARegionSequence& regionSequence;
     WaveformCache& waveformCache;
     std::unordered_map<ARAPlaybackRegion*, std::unique_ptr<PlaybackRegionView>> playbackRegionViews;
@@ -1345,7 +1364,7 @@ private:
         auto& regionSequenceView = insertIntoMap (
             regionSequenceViews,
             RegionSequenceViewKey { regionSequence },
-            std::make_unique<RegionSequenceView> (*regionSequence, waveformCache, zoomLevelPixelPerSecond));
+            std::make_unique<RegionSequenceView> (araEditorView, *regionSequence, waveformCache, zoomLevelPixelPerSecond));
 
         regionSequenceView.addChangeListener (this);
         viewport.content.addAndMakeVisible (regionSequenceView);
