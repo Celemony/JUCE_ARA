@@ -710,6 +710,49 @@ private:
 };
 
 //==============================================================================
+class TimeToViewScalingListener
+{
+public:
+    virtual ~TimeToViewScalingListener() = default;
+
+    virtual void zoomLevelChanged (double newPixelPerSecond) = 0;
+};
+
+class TimeToViewScaling : public ARAListenableModelClass<TimeToViewScalingListener>
+{
+public:
+    TimeToViewScaling() = default;
+
+    void zoom (double factor)
+    {
+        zoomLevelPixelPerSecond = jlimit (minimumZoom, minimumZoom * 32, zoomLevelPixelPerSecond * factor);
+        setZoomLevel (zoomLevelPixelPerSecond);
+    }
+
+    void setZoomLevel (double pixelPerSecond)
+    {
+        zoomLevelPixelPerSecond = pixelPerSecond;
+        notifyListeners ([this] (TimeToViewScalingListener& l) { l.zoomLevelChanged (zoomLevelPixelPerSecond); });
+    }
+
+    int getXForTime (double time) const
+    {
+        return roundToInt (time * zoomLevelPixelPerSecond);
+    }
+
+    double getTimeForX (int x) const
+    {
+        return x / zoomLevelPixelPerSecond;
+    }
+
+private:
+    static constexpr auto minimumZoom = 10.0;
+
+    double zoomLevelPixelPerSecond = minimumZoom * 4;
+
+};
+
+//==============================================================================
 struct WaveformCache : private ARAAudioSourceListener
 {
     WaveformCache() : thumbnailCache (20)
@@ -861,12 +904,13 @@ private:
 
 class RegionSequenceView : public Component,
                            public ChangeBroadcaster,
+                           private TimeToViewScalingListener,
                            private ARARegionSequenceListener,
                            private ARAPlaybackRegionListener
 {
 public:
-    RegionSequenceView (ARAEditorView& editorView, ARARegionSequence& rs, WaveformCache& cache, double pixelPerSec)
-        : araEditorView (editorView), regionSequence (rs), waveformCache (cache), zoomLevelPixelPerSecond (pixelPerSec)
+    RegionSequenceView (ARAEditorView& editorView, TimeToViewScaling& scaling, ARARegionSequence& rs, WaveformCache& cache)
+        : araEditorView (editorView), timeToViewScaling (scaling), regionSequence (rs), waveformCache (cache)
     {
         regionSequence.addListener (this);
 
@@ -874,10 +918,14 @@ public:
             createAndAddPlaybackRegionView (playbackRegion);
 
         updatePlaybackDuration();
+
+        timeToViewScaling.addListener (this);
     }
 
     ~RegionSequenceView() override
     {
+        timeToViewScaling.removeListener (this);
+
         regionSequence.removeListener (this);
 
         for (const auto& it : playbackRegionViews)
@@ -923,6 +971,11 @@ public:
         updatePlaybackDuration();
     }
 
+    void zoomLevelChanged (double) override
+    {
+        resized();
+    }
+
     void resized() override
     {
         for (auto& pbr : playbackRegionViews)
@@ -930,20 +983,14 @@ public:
             const auto playbackRegion = pbr.first;
             pbr.second->setBounds (
                 getLocalBounds()
-                    .withTrimmedLeft (roundToInt (playbackRegion->getStartInPlaybackTime() * zoomLevelPixelPerSecond))
-                    .withWidth (roundToInt (playbackRegion->getDurationInPlaybackTime() * zoomLevelPixelPerSecond)));
+                    .withTrimmedLeft (timeToViewScaling.getXForTime (playbackRegion->getStartInPlaybackTime()))
+                    .withWidth (timeToViewScaling.getXForTime (playbackRegion->getDurationInPlaybackTime())));
         }
     }
 
     auto getPlaybackDuration() const noexcept
     {
         return playbackDuration;
-    }
-
-    void setZoomLevel (double pixelPerSecond)
-    {
-        zoomLevelPixelPerSecond = pixelPerSecond;
-        resized();
     }
 
 private:
@@ -968,11 +1015,11 @@ private:
     }
 
     ARAEditorView& araEditorView;
+    TimeToViewScaling& timeToViewScaling;
     ARARegionSequence& regionSequence;
     WaveformCache& waveformCache;
     std::unordered_map<ARAPlaybackRegion*, std::unique_ptr<PlaybackRegionView>> playbackRegionViews;
     double playbackDuration = 0.0;
-    double zoomLevelPixelPerSecond;
 };
 
 class ZoomControls : public Component
@@ -1123,7 +1170,8 @@ private:
 };
 
 class OverlayComponent : public Component,
-                         private Timer
+                         private Timer,
+                         private TimeToViewScalingListener
 {
 public:
     class PlayheadMarkerComponent : public Component
@@ -1131,16 +1179,20 @@ public:
         void paint (Graphics& g) override { g.fillAll (Colours::yellow.darker (0.2f)); }
     };
 
-    OverlayComponent (PlayHeadState& playHeadStateIn)
-        : playHeadState (playHeadStateIn)
+    OverlayComponent (PlayHeadState& playHeadStateIn, TimeToViewScaling& timeToViewScalingIn)
+        : playHeadState (playHeadStateIn), timeToViewScaling (timeToViewScalingIn)
     {
         addChildComponent (playheadMarker);
         setInterceptsMouseClicks (false, false);
         startTimerHz (30);
+
+        timeToViewScaling.addListener (this);
     }
 
     ~OverlayComponent() override
     {
+        timeToViewScaling.removeListener (this);
+
         stopTimer();
     }
 
@@ -1149,14 +1201,14 @@ public:
         updatePlayHeadPosition();
     }
 
-    void setZoomLevel (double pixelPerSecondIn)
-    {
-        pixelPerSecond = pixelPerSecondIn;
-    }
-
     void setHorizontalOffset (int offset)
     {
         horizontalOffset = offset;
+    }
+
+    void zoomLevelChanged (double) override
+    {
+        updatePlayHeadPosition();
     }
 
 private:
@@ -1164,7 +1216,7 @@ private:
     {
         if (playHeadState.isPlaying.load (std::memory_order_relaxed))
         {
-            const auto markerX = playHeadState.timeInSeconds.load (std::memory_order_relaxed) * pixelPerSecond;
+            const auto markerX = timeToViewScaling.getXForTime (playHeadState.timeInSeconds.load (std::memory_order_relaxed));
             const auto playheadLine = getLocalBounds().withTrimmedLeft ((int) (markerX - markerWidth / 2.0) - horizontalOffset)
                                                       .removeFromLeft ((int) markerWidth);
             playheadMarker.setVisible (true);
@@ -1184,7 +1236,7 @@ private:
     static constexpr double markerWidth = 2.0;
 
     PlayHeadState& playHeadState;
-    double pixelPerSecond = 1.0;
+    TimeToViewScaling& timeToViewScaling;
     int horizontalOffset = 0;
     PlayheadMarkerComponent playheadMarker;
 };
@@ -1198,7 +1250,7 @@ public:
     DocumentView (ARAEditorView& editorView, PlayHeadState& playHeadState)
         : araEditorView (editorView),
           araDocument (*editorView.getDocumentController()->getDocument<ARADocument>()),
-          overlay (playHeadState)
+          overlay (playHeadState, timeToViewScaling)
     {
         viewport.onVisibleAreaChanged = [this] (const auto& r)
         {
@@ -1209,7 +1261,6 @@ public:
 
         addAndMakeVisible (viewport);
 
-        overlay.setZoomLevel (zoomLevelPixelPerSecond);
         addAndMakeVisible (overlay);
 
         zoomControls.setZoomInCallback  ([this] { zoom (2.0); });
@@ -1288,25 +1339,13 @@ public:
         viewport.setBounds (bounds);
         overlay.setBounds (bounds.reduced (1));
 
-        const auto width = jmax (roundToInt (timelineLength * zoomLevelPixelPerSecond), viewport.getWidth());
+        const auto width = jmax (timeToViewScaling.getXForTime (timelineLength), viewport.getWidth());
         const auto height = (int) regionSequenceViews.size() * trackHeight;
         viewport.content.setSize (width, height);
         viewport.content.resized();
     }
 
     //==============================================================================
-    void setZoomLevel (double pixelPerSecond)
-    {
-        zoomLevelPixelPerSecond = pixelPerSecond;
-
-        for (const auto& view : regionSequenceViews)
-            view.second->setZoomLevel (zoomLevelPixelPerSecond);
-
-        overlay.setZoomLevel (zoomLevelPixelPerSecond);
-
-        update();
-    }
-
     static constexpr int headerWidth = 120;
 
 private:
@@ -1328,8 +1367,8 @@ private:
 
     void zoom (double factor)
     {
-        zoomLevelPixelPerSecond = jlimit (minimumZoom, minimumZoom * 32, zoomLevelPixelPerSecond * factor);
-        setZoomLevel (zoomLevelPixelPerSecond);
+        timeToViewScaling.zoom (factor);
+        update();
     }
 
     template <typename T>
@@ -1364,7 +1403,7 @@ private:
         auto& regionSequenceView = insertIntoMap (
             regionSequenceViews,
             RegionSequenceViewKey { regionSequence },
-            std::make_unique<RegionSequenceView> (araEditorView, *regionSequence, waveformCache, zoomLevelPixelPerSecond));
+            std::make_unique<RegionSequenceView> (araEditorView, timeToViewScaling, *regionSequence, waveformCache));
 
         regionSequenceView.addChangeListener (this);
         viewport.content.addAndMakeVisible (regionSequenceView);
@@ -1419,14 +1458,13 @@ private:
         }
     }
 
-    static constexpr auto minimumZoom = 10.0;
-
     ARAEditorView& araEditorView;
     ARADocument& araDocument;
 
     bool regionSequenceViewsAreValid = false;
+
+    TimeToViewScaling timeToViewScaling;
     double timelineLength = 0.0;
-    double zoomLevelPixelPerSecond = minimumZoom * 4;
 
     std::vector<ARARegionSequence*> hiddenRegionSequences;
 
