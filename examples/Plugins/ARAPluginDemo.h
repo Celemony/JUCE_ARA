@@ -1206,9 +1206,30 @@ public:
         horizontalOffset = offset;
     }
 
+    void setSelectedTimeRange (Optional<ARA::ARAContentTimeRange> timeRange)
+    {
+        selectedTimeRange = timeRange;
+        repaint();
+    }
+
     void zoomLevelChanged (double) override
     {
         updatePlayHeadPosition();
+        repaint();
+    }
+
+    void paint (Graphics& g) override
+    {
+        if (selectedTimeRange.hasValue())
+        {
+            auto bounds = getLocalBounds();
+            bounds.setLeft (timeToViewScaling.getXForTime (selectedTimeRange->start));
+            bounds.setRight (timeToViewScaling.getXForTime (selectedTimeRange->start + selectedTimeRange->duration));
+            g.setColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId).brighter().withAlpha (0.3f));
+            g.fillRect (bounds);
+            g.setColour (Colours::whitesmoke.withAlpha (0.5f));
+            g.drawRect (bounds);
+        }
     }
 
 private:
@@ -1238,6 +1259,7 @@ private:
     PlayHeadState& playHeadState;
     TimeToViewScaling& timeToViewScaling;
     int horizontalOffset = 0;
+    Optional<ARA::ARAContentTimeRange> selectedTimeRange;
     PlayheadMarkerComponent playheadMarker;
 };
 
@@ -1314,6 +1336,10 @@ public:
     // ARAEditorView::Listener overrides
     void onNewSelection (const ARAViewSelection& viewSelection) override
     {
+        if (const auto timeRange = viewSelection.getTimeRange())
+            overlay.setSelectedTimeRange (*timeRange);
+        else
+            overlay.setSelectedTimeRange ( {} );
     }
 
     void onHideRegionSequences (std::vector<ARARegionSequence*> const& regionSequences) override
