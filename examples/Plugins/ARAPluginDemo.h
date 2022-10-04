@@ -1187,7 +1187,7 @@ public:
 
     //==============================================================================
     // ARAEditorView::Listener overrides
-    void onNewSelection (const ARA::PlugIn::ViewSelection&) override
+    void onNewSelection (const ARAViewSelection& viewSelection) override
     {
     }
 

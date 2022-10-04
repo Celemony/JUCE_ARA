@@ -244,7 +244,7 @@ public:
         /** Called when the editor view's selection changes.
             @param viewSelection The current selection state
         */
-        virtual void onNewSelection (const ARA::PlugIn::ViewSelection& viewSelection)
+        virtual void onNewSelection (const ARAViewSelection& viewSelection)
         {
             ignoreUnused (viewSelection);
         }
