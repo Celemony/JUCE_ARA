@@ -1018,18 +1018,6 @@ public:
             component->resized();
         }
     }
-
-    void setOverlayComponent (Component* component)
-    {
-        if (overlayComponent != nullptr && overlayComponent != component)
-            removeChildComponent (overlayComponent);
-
-        addChildComponent (component);
-        overlayComponent = component;
-    }
-
-private:
-    Component* overlayComponent = nullptr;
 };
 
 class VerticalLayoutViewport : public Viewport
