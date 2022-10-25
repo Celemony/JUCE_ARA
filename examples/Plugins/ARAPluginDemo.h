@@ -1199,6 +1199,11 @@ public:
         layOutVertically (headerBounds, trackHeaders, viewportHeightOffset);
         viewport.setBounds (bounds);
         overlay.setBounds (bounds.reduced (1));
+
+        const auto width = jmax (roundToInt (timelineLength * zoomLevelPixelPerSecond), viewport.getWidth());
+        const auto height = (int) regionSequenceViews.size() * trackHeight;
+        viewport.content.setSize (width, height);
+        viewport.content.resized();
     }
 
     //==============================================================================
@@ -1254,14 +1259,8 @@ private:
     void update()
     {
         timelineLength = 0.0;
-
         for (const auto& view : regionSequenceViews)
             timelineLength = std::max (timelineLength, view.second->getPlaybackDuration());
-
-        const Rectangle<int> timelineSize (roundToInt (timelineLength * zoomLevelPixelPerSecond),
-                                           (int) regionSequenceViews.size() * trackHeight);
-        viewport.content.setSize (timelineSize.getWidth(), timelineSize.getHeight());
-        viewport.content.resized();
 
         resized();
     }
