@@ -605,18 +605,16 @@ protected:
 
 struct PlayHeadState
 {
-    void update (AudioPlayHead* aph)
+    void update (const Optional<AudioPlayHead::PositionInfo>& info)
     {
-        const auto info = aph->getPosition();
-
         if (info.hasValue() && info->getIsPlaying())
         {
-            isPlaying.store (true);
-            timeInSeconds.store (info->getTimeInSeconds().orFallback (0));
+            isPlaying.store (true, std::memory_order_relaxed);
+            timeInSeconds.store (info->getTimeInSeconds().orFallback (0), std::memory_order_relaxed);
         }
         else
         {
-            isPlaying.store (false);
+            isPlaying.store (false, std::memory_order_relaxed);
         }
     }
 
@@ -639,13 +637,13 @@ public:
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override
     {
-        playHeadState.isPlaying.store (false);
+        playHeadState.update (nullopt);
         prepareToPlayForARA (sampleRate, samplesPerBlock, getMainBusNumOutputChannels(), getProcessingPrecision());
     }
 
     void releaseResources() override
     {
-        playHeadState.isPlaying.store (false);
+        playHeadState.update (nullopt);
         releaseResourcesForARA();
     }
 
@@ -665,7 +663,7 @@ public:
         ScopedNoDenormals noDenormals;
 
         auto* audioPlayHead = getPlayHead();
-        playHeadState.update (audioPlayHead);
+        playHeadState.update (audioPlayHead->getPosition());
 
         if (! processBlockForARA (buffer, isRealtime(), audioPlayHead))
             processBlockBypassed (buffer, midiMessages);
@@ -1084,9 +1082,9 @@ public:
 private:
     void updatePlayHeadPosition()
     {
-        if (playHeadState.isPlaying.load())
+        if (playHeadState.isPlaying.load (std::memory_order_relaxed))
         {
-            const auto markerX = playHeadState.timeInSeconds.load() * pixelPerSecond;
+            const auto markerX = playHeadState.timeInSeconds.load (std::memory_order_relaxed) * pixelPerSecond;
             const auto playheadLine = getLocalBounds().withTrimmedLeft ((int) (markerX - markerWidth / 2.0) - horizontalOffset)
                                                       .removeFromLeft ((int) markerWidth);
             playheadMarker.setVisible (true);
