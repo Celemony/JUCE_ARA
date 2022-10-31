@@ -610,19 +610,30 @@ struct PlayHeadState
 {
     void update (const Optional<AudioPlayHead::PositionInfo>& info)
     {
-        if (info.hasValue() && info->getIsPlaying())
+        if (info.hasValue())
         {
-            isPlaying.store (true, std::memory_order_relaxed);
+            isPlaying.store (info->getIsPlaying(), std::memory_order_relaxed);
             timeInSeconds.store (info->getTimeInSeconds().orFallback (0), std::memory_order_relaxed);
+            isLooping.store (info->getIsLooping(), std::memory_order_relaxed);
+            Optional<AudioPlayHead::LoopPoints> loopPoints = info->getLoopPoints();
+            if (loopPoints.hasValue())
+            {
+                loopPpqStart = loopPoints->ppqStart;
+                loopPpqEnd = loopPoints->ppqEnd;
+            }
         }
         else
         {
             isPlaying.store (false, std::memory_order_relaxed);
+            isLooping.store (false, std::memory_order_relaxed);
         }
     }
 
     std::atomic<bool>   isPlaying     { false };
     std::atomic<double> timeInSeconds { 0.0 };
+    std::atomic<bool>   isLooping     { false };
+    std::atomic<double> loopPpqStart  { 0.0 };
+    std::atomic<double> loopPpqEnd    { 0.0 };
 };
 
 //==============================================================================
@@ -755,18 +766,36 @@ private:
 };
 
 class RulersView : public Component,
+                   private Timer,
                    private TimeToViewScalingListener,
                    private ARAMusicalContextListener
 {
 public:
-    RulersView (TimeToViewScaling& scaling, ARADocument& document)
-        : timeToViewScaling (scaling), araDocument (document)
+    class CycleMarkerComponent : public Component
+    {
+        void paint (Graphics& g) override
+        {
+            g.setColour (Colours::yellow.darker (0.2f));
+            const auto bounds = getLocalBounds().toFloat();
+            g.drawRoundedRectangle (bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), 6.0f, 2.0f);
+        }
+    };
+
+    RulersView (PlayHeadState& playHeadStateIn, TimeToViewScaling& timeToViewScalingIn, ARADocument& document)
+        : playHeadState (playHeadStateIn), timeToViewScaling (timeToViewScalingIn), araDocument (document)
     {
         timeToViewScaling.addListener (this);
+
+        addChildComponent (cycleMarker);
+        cycleMarker.setInterceptsMouseClicks (false, false);
+
+        startTimerHz (30);
     }
 
     ~RulersView()
     {
+        stopTimer();
+
         timeToViewScaling.removeListener (this);
 
         selectMusicalContext (nullptr);
@@ -892,9 +921,39 @@ public:
     }
 
 private:
+    void updateCyclePosition()
+    {
+        if (selectedMusicalContext != nullptr)
+        {
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempoReader (selectedMusicalContext);
+            const ARA::TempoConverter<decltype (tempoReader)> tempoConverter (tempoReader);
+
+            const auto loopStartTime = tempoConverter.getTimeForQuarter (playHeadState.loopPpqStart.load (std::memory_order_relaxed));
+            const auto loopEndTime = tempoConverter.getTimeForQuarter (playHeadState.loopPpqEnd.load (std::memory_order_relaxed));
+
+            auto cycleRect = getBounds();
+            cycleRect.setLeft (timeToViewScaling.getXForTime (loopStartTime));
+            cycleRect.setRight (timeToViewScaling.getXForTime (loopEndTime));
+            cycleMarker.setVisible (true);
+            cycleMarker.setBounds (cycleRect);
+        }
+        else
+        {
+            cycleMarker.setVisible (false);
+        }
+    }
+
+    void timerCallback() override
+    {
+        updateCyclePosition();
+    }
+
+private:
+    PlayHeadState& playHeadState;
     TimeToViewScaling& timeToViewScaling;
     ARADocument& araDocument;
     ARAMusicalContext* selectedMusicalContext = nullptr;
+    CycleMarkerComponent cycleMarker;
 };
 
 class RulersHeader : public Component
@@ -1459,7 +1518,7 @@ public:
     DocumentView (ARAEditorView& editorView, PlayHeadState& playHeadState)
         : araEditorView (editorView),
           araDocument (*editorView.getDocumentController()->getDocument<ARADocument>()),
-          rulersView (timeToViewScaling, araDocument),
+          rulersView (playHeadState, timeToViewScaling, araDocument),
           overlay (playHeadState, timeToViewScaling)
     {
         if (araDocument.getMusicalContexts().size() > 0)
