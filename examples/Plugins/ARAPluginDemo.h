@@ -895,6 +895,46 @@ public:
         }
     }
 
+    void mouseDrag (const MouseEvent& m) override
+    {
+        isDraggingCycle = true;
+
+        auto cycleRect = getBounds();
+        cycleRect.setLeft (jmin (m.getMouseDownX(), m.x));
+        cycleRect.setRight (jmax (m.getMouseDownX(), m.x));
+        cycleMarker.setBounds (cycleRect);
+    }
+
+    void mouseUp (const MouseEvent& m) override
+    {
+        auto playbackController = araDocument.getDocumentController()->getHostPlaybackController();
+        if (playbackController != nullptr)
+        {
+            const auto startTime = timeToViewScaling.getTimeForX (jmin (m.getMouseDownX(), m.x));
+            const auto endTime = timeToViewScaling.getTimeForX (jmax (m.getMouseDownX(), m.x));
+
+            if (playHeadState.isPlaying.load (std::memory_order_relaxed))
+                playbackController->requestStopPlayback();
+            else
+                playbackController->requestSetPlaybackPosition (startTime);
+
+            if (isDraggingCycle)
+                playbackController->requestSetCycleRange (startTime, endTime - startTime);
+        }
+
+        isDraggingCycle = false;
+    }
+
+    void mouseDoubleClick (const MouseEvent&) override
+    {
+        auto playbackController = araDocument.getDocumentController()->getHostPlaybackController();
+        if (playbackController != nullptr)
+        {
+            if (! playHeadState.isPlaying.load (std::memory_order_relaxed))
+                playbackController->requestStartPlayback();
+        }
+    }
+
     void selectMusicalContext (ARAMusicalContext* newSelectedMusicalContext)
     {
         if (selectedMusicalContext == newSelectedMusicalContext)
@@ -945,7 +985,8 @@ private:
 
     void timerCallback() override
     {
-        updateCyclePosition();
+        if (! isDraggingCycle)
+            updateCyclePosition();
     }
 
 private:
@@ -954,6 +995,7 @@ private:
     ARADocument& araDocument;
     ARAMusicalContext* selectedMusicalContext = nullptr;
     CycleMarkerComponent cycleMarker;
+    bool isDraggingCycle = false;
 };
 
 class RulersHeader : public Component
