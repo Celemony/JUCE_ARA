@@ -1337,6 +1337,97 @@ private:
     TextButton zoomInButton { "+" }, zoomOutButton { "-" };
 };
 
+class PlayheadPositionLabel : public Label,
+                              private Timer
+{
+public:
+    PlayheadPositionLabel(PlayHeadState& playHeadStateIn)
+        : playHeadState (playHeadStateIn)
+    {
+        startTimerHz (30);
+    }
+
+    ~PlayheadPositionLabel()
+    {
+        stopTimer();
+    }
+
+    void selectMusicalContext (ARAMusicalContext* newSelectedMusicalContext)
+    {
+        selectedMusicalContext = newSelectedMusicalContext;
+    }
+
+private:
+    void timerCallback() override
+    {
+        const auto timePosition = playHeadState.timeInSeconds.load (std::memory_order_relaxed);
+        
+        String text = timeToTimecodeString (timePosition);
+        if (playHeadState.isPlaying.load (std::memory_order_relaxed))
+            text += " (playing)";
+        else
+            text += " (stopped)";
+
+        if (selectedMusicalContext != nullptr)
+        {
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempoReader (selectedMusicalContext);
+            const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> barSignaturesReader (selectedMusicalContext);
+            if (tempoReader && barSignaturesReader)
+            {
+                const ARA::TempoConverter<decltype (tempoReader)> tempoConverter (tempoReader);
+                const ARA::BarSignaturesConverter<decltype (barSignaturesReader)> barSignaturesConverter (barSignaturesReader);
+                const auto quarterPosition = tempoConverter.getQuarterForTime (timePosition);
+                const auto barIndex = barSignaturesConverter.getBarIndexForQuarter (quarterPosition);
+                const auto beatDistance = barSignaturesConverter.getBeatDistanceFromBarStartForQuarter (quarterPosition);
+                const auto quartersPerBeat = 4.0 / (double) barSignaturesConverter.getBarSignatureForQuarter (quarterPosition).denominator;
+                const auto beatIndex = (int) beatDistance;
+                const auto tickIndex = juce::roundToInt ((beatDistance - beatIndex) * quartersPerBeat * 960.0);
+
+                text += newLine;
+                text += String::formatted ("bar %d | beat %d | tick %03d", (barIndex >= 0) ? barIndex + 1 : barIndex, beatIndex + 1, tickIndex + 1);
+                text += "  -  ";
+
+                const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chordsReader (selectedMusicalContext);
+                if (chordsReader && chordsReader.getEventCount() > 0)
+                {
+                    const auto begin = chordsReader.begin();
+                    const auto end = chordsReader.end();
+                    auto it = begin;
+                    while (it->position <= quarterPosition && it != end)
+                        ++it;
+                    if (it != begin)
+                        --it;
+                    const ARA::ChordInterpreter interpreter (true);
+                    text += "chord ";
+                    text += String (interpreter.getNameForChord (*it));
+                }
+                else
+                {
+                    text += "(no chords provided)";
+                }
+            }
+        }
+
+        setText (text, NotificationType::dontSendNotification);
+    }
+
+    // copied from AudioPluginDemo.h: quick-and-dirty function to format a timecode string
+    static String timeToTimecodeString (double seconds)
+    {
+        auto millisecs = roundToInt (seconds * 1000.0);
+        auto absMillisecs = std::abs (millisecs);
+
+        return String::formatted ("%02d:%02d:%02d.%03d",
+                                  millisecs / 3600000,
+                                  (absMillisecs / 60000) % 60,
+                                  (absMillisecs / 1000)  % 60,
+                                  absMillisecs % 1000);
+    }
+
+    PlayHeadState& playHeadState;
+    ARAMusicalContext* selectedMusicalContext = nullptr;
+};
+
 class TrackHeader : public Component,
                     private ARARegionSequenceListener,
                     private ARAEditorView::Listener
@@ -1561,7 +1652,8 @@ public:
         : araEditorView (editorView),
           araDocument (*editorView.getDocumentController()->getDocument<ARADocument>()),
           rulersView (playHeadState, timeToViewScaling, araDocument),
-          overlay (playHeadState, timeToViewScaling)
+          overlay (playHeadState, timeToViewScaling),
+          playheadPositionLabel (playHeadState)
     {
         if (araDocument.getMusicalContexts().size() > 0)
             selectMusicalContext (araDocument.getMusicalContexts().front());
@@ -1580,6 +1672,8 @@ public:
         addAndMakeVisible (viewport);
 
         addAndMakeVisible (overlay);
+
+        addAndMakeVisible (playheadPositionLabel);
 
         zoomControls.setZoomInCallback  ([this] { zoom (2.0); });
         zoomControls.setZoomOutCallback ([this] { zoom (0.5); });
@@ -1670,7 +1764,11 @@ public:
     {
         auto bounds = getLocalBounds();
 
-        zoomControls.setBounds (bounds.removeFromBottom (40));
+        FlexBox fb;
+        fb.justifyContent = FlexBox::JustifyContent::spaceBetween;
+        fb.items.add (FlexItem (playheadPositionLabel).withWidth (450.0f).withMinWidth (250.0f));
+        fb.items.add (FlexItem (zoomControls).withMinWidth (80.0f));
+        fb.performLayout (bounds.removeFromBottom (40));
 
         auto headerBounds = bounds.removeFromLeft (headerWidth);
         rulersHeader.setBounds (headerBounds.removeFromTop (trackHeight));
@@ -1709,6 +1807,7 @@ private:
     {
         selectedMusicalContext = newSelectedMusicalContext;
         rulersView.selectMusicalContext (selectedMusicalContext);
+        playheadPositionLabel.selectMusicalContext (selectedMusicalContext);
     }
 
     void zoom (double factor)
@@ -1824,6 +1923,7 @@ private:
     VerticalLayoutViewport viewport;
     OverlayComponent overlay;
     ZoomControls zoomControls;
+    PlayheadPositionLabel playheadPositionLabel;
 
     int viewportHeightOffset = 0;
 };
