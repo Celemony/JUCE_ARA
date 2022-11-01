@@ -677,7 +677,15 @@ public:
     const String getName() const override                             { return "ARAPluginDemo"; }
     bool acceptsMidi() const override                                 { return true; }
     bool producesMidi() const override                                { return true; }
-    double getTailLengthSeconds() const override                      { return 0.0; }
+
+    double getTailLengthSeconds() const override
+    {
+        double tail;
+        if (getTailLengthSecondsForARA (tail))
+            return tail;
+
+        return 0.0;
+    }
 
     //==============================================================================
     int getNumPrograms() override                                     { return 0; }
