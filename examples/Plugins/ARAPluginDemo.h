@@ -860,7 +860,6 @@ private:
 };
 
 class RulersView : public Component,
-                   public SettableTooltipClient,
                    private Timer,
                    private TimeToViewScalingListener,
                    private ARAMusicalContextListener
@@ -883,8 +882,6 @@ public:
 
         addChildComponent (cycleMarker);
         cycleMarker.setInterceptsMouseClicks (false, false);
-
-        setTooltip ("Double-click to start playback, click to stop playback or to reposition, drag horizontal range to set cycle.");
 
         startTimerHz (30);
     }
@@ -1191,7 +1188,6 @@ private:
 
 class PlaybackRegionView : public Component,
                            public ChangeListener,
-                           public SettableTooltipClient,
                            private ARAAudioSourceListener,
                            private ARAPlaybackRegionListener,
                            private ARAEditorView::Listener
@@ -1209,8 +1205,6 @@ public:
         playbackRegion.addListener (this);
 
         araEditorView.addListener (this);
-
-        setTooltip ("Double-click to toggle dim state of the region, click and hold to prelisten region near click.");
     }
 
     ~PlaybackRegionView() override
@@ -2065,7 +2059,6 @@ private:
     OverlayComponent overlay;
     ZoomControls zoomControls;
     PlayheadPositionLabel playheadPositionLabel;
-    TooltipWindow tooltip;
 
     int viewportHeightOffset = 0;
 };
