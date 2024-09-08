@@ -384,6 +384,8 @@ namespace juce::build_tools
 
         componentDict->createNewChildElement ("key")->addTextElement ("tags");
         auto* tagsArray = componentDict->createNewChildElement ("array");
+        if (isPluginARAEffect)
+            tagsArray->createNewChildElement ("string")->addTextElement ("ARA");
 
         tagsArray->createNewChildElement ("string")
                  ->addTextElement (isPluginSynth ? "Synth" : "Effects");
