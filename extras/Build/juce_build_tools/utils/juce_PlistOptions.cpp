@@ -376,7 +376,6 @@ namespace juce::build_tools
 
         addPlistDictionaryKey (*componentDict, "name", pluginManufacturer + ": " + pluginName);
         addPlistDictionaryKey (*componentDict, "description", pluginDescription);
-        addPlistDictionaryKey (*componentDict, "factoryFunction", pluginAUExportPrefix + "FactoryAUv3");
         addPlistDictionaryKey (*componentDict, "manufacturer", pluginManufacturerCode.substring (0, 4));
         addPlistDictionaryKey (*componentDict, "type", auMainType.removeCharacters ("'"));
         addPlistDictionaryKey (*componentDict, "subtype", pluginCode.substring (0, 4));
