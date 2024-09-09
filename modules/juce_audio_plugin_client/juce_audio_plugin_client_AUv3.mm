@@ -556,8 +556,11 @@ public:
             return 44100.0;
         }();
 
-        processor.setRateAndBufferSizeDetails (sampleRate, static_cast<int> (maxFrames));
-        processor.prepareToPlay (sampleRate, static_cast<int> (maxFrames));
+        MessageManager::callSync ([&]
+        {
+            processor.setRateAndBufferSizeDetails (sampleRate, static_cast<int> (maxFrames));
+            processor.prepareToPlay (sampleRate, static_cast<int> (maxFrames));
+        });
 
         midiMessages.ensureSize (2048);
         midiMessages.clear();
@@ -587,7 +590,11 @@ public:
         hostMusicalContextCallback = nullptr;
         hostTransportStateCallback = nullptr;
 
-        getAudioProcessor().releaseResources();
+        MessageManager::callSync ([&]
+        {
+            getAudioProcessor().releaseResources();
+        });
+
         audioBuffer.release();
 
         inBusBuffers. clear();
