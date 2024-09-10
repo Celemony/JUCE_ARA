@@ -67,6 +67,17 @@
 
 #define JUCE_AUDIOUNIT_OBJC_NAME(x) JUCE_JOIN_MACRO (x, AUv3)
 
+#if JucePlugin_Enable_ARA
+ #include <ARA_Library/IPC/ARAIPCAudioUnit_v3.h>
+
+ #if ARA_AUDIOUNITV3_IPC_IS_AVAILABLE
+  #define ARA_AUDIOUNITV3_IPC_PROXY_HOST_ONLY 1
+  #include <ARA_Library/IPC/ARAIPCAudioUnit_v3.mm>
+  #include <ARA_Library/IPC/ARAIPCProxyHost.cpp>
+  #include <ARA_Library/Dispatch/ARAHostDispatch.cpp>
+ #endif
+#endif
+
 JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfour-char-constants")
 inline constexpr auto pluginIsMidiEffect = JucePlugin_AUMainType == kAudioUnitType_MIDIProcessor;
 JUCE_END_IGNORE_WARNINGS_GCC_LIKE
@@ -880,6 +891,35 @@ private:
 
            #if JUCE_AUDIOWORKGROUP_TYPES_AVAILABLE
             addMethod (@selector (renderContextObserver),                   [] (id self, SEL)                                                   { return _this (self)->getInternalContextObserver(); });
+           #endif
+
+           #if JucePlugin_Enable_ARA && ARA_AUDIOUNITV3_IPC_IS_AVAILABLE
+            if (@available (macOS 13.0, iOS 16.0, *))
+            {
+                addProtocol (@protocol (ARAAudioUnit));
+                addMethod (@selector (araFactory),                          [] (id self, SEL)                                                   { return createARAFactory(); });
+                addMethod (@selector (bindToDocumentController:withRoles:knownRoles:),
+                                                                            [] (id self, SEL, ARA::ARADocumentControllerRef docRef, ARA::ARAPlugInInstanceRoleFlags assignedRoles, ARA::ARAPlugInInstanceRoleFlags knownRoles) {
+                    auto& processor = _this (self)->getAudioProcessor();
+                    auto araAudioProcessorExtension = dynamic_cast<AudioProcessorARAExtension*> (&processor);
+                    return araAudioProcessorExtension->bindToARA (docRef, knownRoles, assignedRoles); });
+                addMethod (@selector (araRemoteInstanceRef),                [] (id self, SEL)                                                   { return (NSUInteger)self; });
+
+                addMethod (@selector (messageChannelFor:),                  [] (id self, SEL, NSString* _Nonnull channelName)                   {
+                    id<AUMessageChannel> result = nil;
+
+                    if (@available(macOS 13.0, iOS 16.0, *))
+                    {
+                        static dispatch_once_t onceToken;
+                        dispatch_once(&onceToken, ^{ ARA::IPC::ARAIPCProxyHostAddFactory (createARAFactory()); });
+
+                        result = ARA::IPC::ARAIPCAUProxyHostMessageChannelFor (channelName);
+                    }
+
+                    // TODO the return value should be declared _Nullable in the OS - must be fixed there!
+                    return (id<AUMessageChannel> _Nonnull) result;
+                });
+            }
            #endif
 
             //==============================================================================
