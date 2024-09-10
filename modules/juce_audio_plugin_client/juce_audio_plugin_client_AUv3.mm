@@ -232,7 +232,6 @@ public:
        #endif
 
         processor.setRateAndBufferSizeDetails (kDefaultSampleRate, static_cast<int> (maxFrames));
-        processor.prepareToPlay (kDefaultSampleRate, static_cast<int> (maxFrames));
         processor.addListener (this);
 
         addParameters();
