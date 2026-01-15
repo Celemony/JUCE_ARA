@@ -67,8 +67,6 @@
 
 #define JUCE_AUDIOUNIT_OBJC_NAME(x) JUCE_JOIN_MACRO (x, AUv3)
 
-#include <future>
-
 JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfour-char-constants")
 inline constexpr auto pluginIsMidiEffect = JucePlugin_AUMainType == kAudioUnitType_MIDIProcessor;
 JUCE_END_IGNORE_WARNINGS_GCC_LIKE
@@ -827,34 +825,10 @@ private:
 
             addMethod (@selector (dealloc), [] (id self, SEL)
             {
-                if (! MessageManager::getInstance()->isThisTheMessageThread())
-                {
-                    WaitableEvent deletionEvent;
-
-                    struct AUDeleter final : public CallbackMessage
-                    {
-                        AUDeleter (id selfToDelete, WaitableEvent& event)
-                            : parentSelf (selfToDelete), parentDeletionEvent (event)
-                        {
-                        }
-
-                        void messageCallback() override
-                        {
-                            delete _this (parentSelf);
-                            parentDeletionEvent.signal();
-                        }
-
-                        id parentSelf;
-                        WaitableEvent& parentDeletionEvent;
-                    };
-
-                    (new AUDeleter (self, deletionEvent))->post();
-                    deletionEvent.wait (-1);
-                }
-                else
+                MessageManager::callSync ([&]
                 {
                     delete _this (self);
-                }
+                });
             });
 
             //==============================================================================
