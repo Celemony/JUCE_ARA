@@ -80,9 +80,6 @@ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 #if JucePlugin_Enable_ARA
  #include <juce_audio_processors_headless/utilities/ARA/juce_AudioProcessor_ARAExtensions.h>
  #include <ARA_API/ARAAudioUnit.h>
- #if ARA_SUPPORT_VERSION_1
-  #error "Unsupported ARA version - only ARA version 2 and onward are supported by the current JUCE ARA implementation"
- #endif
 #endif
 
 #include <set>

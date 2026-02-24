@@ -251,10 +251,6 @@ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
  #include <ARA_API/ARAVST3.h>
  JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
- #if ARA_SUPPORT_VERSION_1
-  #error "Unsupported ARA version - only ARA version 2 and onward are supported by the current implementation"
- #endif
-
  #if ! JUCE_VST3HEADERS_INCLUDE_HEADERS_ONLY
   DEF_CLASS_IID (ARA::IPlugInEntryPoint)
   DEF_CLASS_IID (ARA::IPlugInEntryPoint2)
