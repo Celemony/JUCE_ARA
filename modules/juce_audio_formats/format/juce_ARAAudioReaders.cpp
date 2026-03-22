@@ -291,7 +291,7 @@ void ARAPlaybackRegionReader::willUpdatePlaybackRegionProperties (ARAPlaybackReg
         || ! exactlyEqual (playbackRegion->getStartInPlaybackTime(), newProperties->startInPlaybackTime)
         || ! exactlyEqual (playbackRegion->getDurationInPlaybackTime(), newProperties->durationInPlaybackTime)
         || (playbackRegion->isTimestretchEnabled() != ((newProperties->transformationFlags & ARA::kARAPlaybackTransformationTimestretch) != 0))
-        || (playbackRegion->isTimeStretchReflectingTempo() != ((newProperties->transformationFlags & ARA::kARAPlaybackTransformationTimestretchReflectingTempo) != 0))
+        || (playbackRegion->isTimestretchReflectingTempo() != ((newProperties->transformationFlags & ARA::kARAPlaybackTransformationTimestretchReflectingTempo) != 0))
         || (playbackRegion->hasContentBasedFadeAtHead() != ((newProperties->transformationFlags & ARA::kARAPlaybackTransformationContentBasedFadeAtHead) != 0))
         || (playbackRegion->hasContentBasedFadeAtTail() != ((newProperties->transformationFlags & ARA::kARAPlaybackTransformationContentBasedFadeAtTail) != 0)))
     {
