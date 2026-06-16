@@ -1947,18 +1947,11 @@ public:
                 processor->memoryWarningReceived();
     }
 
-    void viewDidAppear (bool)
+    void setViewVisible (bool shouldBeVisible)
     {
         if (processorHolder.get() != nullptr)
             if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
-                editor->setVisible (true);
-    }
-
-    void viewDidDisappear (bool)
-    {
-        if (processorHolder.get() != nullptr)
-            if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
-                editor->setVisible (false);
+                editor->setVisible (shouldBeVisible);
     }
 
     CGSize getPreferredContentSize() const
@@ -2041,8 +2034,12 @@ private:
 
 - (void) didReceiveMemoryWarning { cpp->didReceiveMemoryWarning(); }
 #if JUCE_IOS
-- (void) viewDidAppear: (BOOL) animated { cpp->viewDidAppear (animated); [super viewDidAppear:animated]; }
-- (void) viewDidDisappear: (BOOL) animated { cpp->viewDidDisappear (animated); [super viewDidDisappear:animated]; }
+ #if defined (__IPHONE_17_0)
+- (void) viewIsAppearing: (BOOL) animated { cpp->setViewVisible (true); [super viewIsAppearing:animated]; }
+ #else
+- (void) viewDidAppear: (BOOL) animated { cpp->setViewVisible (true); [super viewDidAppear:animated]; }
+ #endif
+- (void) viewDidDisappear: (BOOL) animated { cpp->setViewVisible (false); [super viewDidDisappear:animated]; }
 #endif
 @end
 
