@@ -1892,11 +1892,7 @@ public:
                     JUCE_IOS_MAC_VIEW* view = [[[JUCE_IOS_MAC_VIEW alloc] initWithFrame: convertToCGRect (editor->getBounds())] autorelease];
                     [myself setView: view];
 
-                   #if JUCE_IOS
                     editor->setVisible (false);
-                   #else
-                    editor->setVisible (true);
-                   #endif
 
                     detail::PluginUtilities::addToDesktop (*editor, view);
 
@@ -2040,6 +2036,10 @@ private:
 - (void) viewDidAppear: (BOOL) animated { cpp->setViewVisible (true); [super viewDidAppear:animated]; }
  #endif
 - (void) viewDidDisappear: (BOOL) animated { cpp->setViewVisible (false); [super viewDidDisappear:animated]; }
+#else
+ // TODO it seems macOS does not resize between will- and didAppear, so willAppear should be closer to iOS 17 viewIsAppearing:
+ - (void) viewWillAppear { cpp->setViewVisible (true); [super viewDidAppear]; }
+ - (void) viewDidDisappear { cpp->setViewVisible (false); [super viewDidDisappear]; }
 #endif
 @end
 
