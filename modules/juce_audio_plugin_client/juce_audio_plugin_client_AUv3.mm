@@ -888,8 +888,8 @@ private:
                 addMethod (@selector (supportedViewConfigurations:), [] (id self, SEL, NSArray<AUAudioUnitViewConfiguration*>* configs)
                 {
                     auto supportedViewIndices = [[NSMutableIndexSet alloc] init];
-                    auto n = [configs count];
 
+                   #if !JucePlugin_Enable_ARA
                     const auto getEditor = [&]
                     {
                         if (auto* editor = _this (self)->getAudioProcessor().getActiveEditor())
@@ -907,6 +907,7 @@ private:
                             jassert (   editor->supportsHostMIDIControllerPresence (true)
                                      || editor->supportsHostMIDIControllerPresence (false));
 
+                            const auto n = [configs count];
                             for (auto i = 0u; i < n; ++i)
                             {
                                 if (auto viewConfiguration = [configs objectAtIndex: i])
@@ -931,6 +932,7 @@ private:
                             }
                         }
                     });
+                   #endif
 
                     return [supportedViewIndices autorelease];
                 });
@@ -1872,6 +1874,21 @@ public:
     }
 
     //==============================================================================
+    void attachEditor (JUCE_IOS_MAC_VIEW* view, AudioProcessorEditor* editor)
+    {
+        editor->setVisible (false);
+
+        detail::PluginUtilities::addToDesktop (*editor, view);
+
+       #if JUCE_IOS
+        if (JUCE_IOS_MAC_VIEW* peerView = [[[myself view] subviews] objectAtIndex: 0])
+            [peerView setContentMode: UIViewContentModeTop];
+
+        if (auto* peer = dynamic_cast<UIViewPeerControllerReceiver*> (editor->getPeer()))
+            peer->setViewController (myself);
+       #endif
+    }
+
     void loadView()
     {
         JUCE_ASSERT_MESSAGE_THREAD
@@ -1885,25 +1902,33 @@ public:
 
             if (processor.hasEditor())
             {
-                if (AudioProcessorEditor* editor = processor.createEditorIfNeeded())
+               #if JucePlugin_Enable_ARA
+                if (initialPreferredSize.getWidth() == 1)
                 {
-                    preferredSize = editor->getBounds();
-
-                    JUCE_IOS_MAC_VIEW* view = [[[JUCE_IOS_MAC_VIEW alloc] initWithFrame: convertToCGRect (editor->getBounds())] autorelease];
-                    [myself setView: view];
-
-                    editor->setVisible (false);
-
-                    detail::PluginUtilities::addToDesktop (*editor, view);
-
-                   #if JUCE_IOS
-                    if (JUCE_IOS_MAC_VIEW* peerView = [[[myself view] subviews] objectAtIndex: 0])
-                        [peerView setContentMode: UIViewContentModeTop];
-
-                    if (auto* peer = dynamic_cast<UIViewPeerControllerReceiver*> (editor->getPeer()))
-                        peer->setViewController (myself);
-                   #endif
+                    if (auto tempProcessor = createPluginFilterOfType (AudioProcessor::wrapperType_AudioUnitv3))
+                    {
+                        if (auto editor = tempProcessor->createEditorIfNeeded())
+                        {
+                            initialPreferredSize = editor->getBounds();
+                            tempProcessor->editorBeingDeleted (editor);
+                            delete editor;
+                        }
+                    }
                 }
+                preferredSize = initialPreferredSize;
+               #else
+                AudioProcessorEditor* editor { nullptr };
+                if (editor = processor.createEditorIfNeeded())
+                    preferredSize = editor->getBounds();
+               #endif
+
+                JUCE_IOS_MAC_VIEW* view = [[[JUCE_IOS_MAC_VIEW alloc] initWithFrame: convertToCGRect (preferredSize)] autorelease];
+                [myself setView: view];
+
+               #if !JucePlugin_Enable_ARA
+                if (editor)
+                    attachEditor (view, editor);
+               #endif
             }
         }
     }
@@ -1914,7 +1939,7 @@ public:
 
         if (auto holder = processorHolder.get())
         {
-            if ([myself view] != nullptr)
+            if ((myself.view != nullptr) && [myself.view.subviews count])
             {
                 if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
                 {
@@ -1946,8 +1971,18 @@ public:
     void setViewVisible (bool shouldBeVisible)
     {
         if (processorHolder.get() != nullptr)
+        {
+           #if JucePlugin_Enable_ARA
+            JUCE_IOS_MAC_VIEW* view = [myself view];
+            if ([view.subviews count] == 0)
+            {
+                if (auto editor = getAudioProcessor().createEditorIfNeeded())
+                    attachEditor (view, editor);
+            }
+           #endif
             if (AudioProcessorEditor* editor = getAudioProcessor().getActiveEditor())
                 editor->setVisible (shouldBeVisible);
+        }
     }
 
     CGSize getPreferredContentSize() const
@@ -2003,11 +2038,17 @@ private:
     //==============================================================================
     AUViewController<AUAudioUnitFactory>* myself;
     LockedProcessorHolder processorHolder;
+#if JucePlugin_Enable_ARA
+    static Rectangle<int> initialPreferredSize;
+#endif
     Rectangle<int> preferredSize { 1, 1 };
 
     //==============================================================================
     AudioProcessor& getAudioProcessor() const noexcept       { return **processorHolder.get(); }
 };
+#if JucePlugin_Enable_ARA
+Rectangle<int> JuceAUViewController::initialPreferredSize = { 1, 1 };
+#endif
 
 //==============================================================================
 // necessary glue code
