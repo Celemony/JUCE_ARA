@@ -100,6 +100,27 @@ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wnullability-completeness")
 
 using namespace juce;
 
+template <typename Callback>
+static void callSyncOnMessageThread (Callback&& callback)
+{
+ #if JucePlugin_Enable_ARA && ARA_AUDIOUNITV3_IPC_IS_AVAILABLE
+    ARA::IPC::ARAIPCAUProxyHostDispatchSyncToMainThread (^void() { callback(); });
+ #else
+// TODO directly using GDC is likely more efficient than the std::promise implementation in MessageManager::callSync()
+//  MessageManager::callSync (callback);
+    if (MessageManager::getInstance()->isThisTheMessageThread())
+    {
+        callback();
+        return;
+    }
+
+    dispatch_sync (dispatch_get_main_queue (), ^void ()
+    {
+        callback();
+    });
+ #endif
+}
+
 struct AudioProcessorHolder final : public ReferenceCountedObject
 {
     AudioProcessorHolder() = default;
@@ -565,7 +586,7 @@ public:
             return 44100.0;
         }();
 
-        MessageManager::callSync ([&]
+        callSyncOnMessageThread ([&]
         {
             processor.setRateAndBufferSizeDetails (sampleRate, static_cast<int> (maxFrames));
             processor.prepareToPlay (sampleRate, static_cast<int> (maxFrames));
@@ -599,7 +620,7 @@ public:
         hostMusicalContextCallback = nullptr;
         hostTransportStateCallback = nullptr;
 
-        MessageManager::callSync ([&]
+        callSyncOnMessageThread ([&]
         {
             getAudioProcessor().releaseResources();
         });
@@ -836,7 +857,7 @@ private:
 
             addMethod (@selector (dealloc), [] (id self, SEL)
             {
-                MessageManager::callSync ([&]
+                callSyncOnMessageThread ([&]
                 {
                     delete _this (self);
                 });
@@ -938,7 +959,7 @@ private:
                         return _this (self)->getAudioProcessor().createEditorIfNeeded();
                     };
 
-                    MessageManager::callSync ([&]
+                    callSyncOnMessageThread ([&]
                     {
                         if (auto* editor = getEditor())
                         {
@@ -2039,7 +2060,7 @@ public:
             if (auto initialisedHolder = processorHolder.get())
                 return initialisedHolder;
 
-            MessageManager::callSync ([this] { [myself view]; });
+            callSyncOnMessageThread ([this] { [myself view]; });
             return processorHolder.get();
         });
 
