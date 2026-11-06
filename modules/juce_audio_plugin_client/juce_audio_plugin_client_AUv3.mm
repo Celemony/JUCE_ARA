@@ -285,12 +285,20 @@ public:
     //==============================================================================
     AUAudioUnitPreset* getCurrentPreset() const
     {
-        return factoryPresets.getAtIndex (getAudioProcessor().getCurrentProgram());
+        AUAudioUnitPreset* result;
+        callSyncOnMessageThread ([&]
+        {
+            result = factoryPresets.getAtIndex (getAudioProcessor().getCurrentProgram());
+        });
+        return result;
     }
 
     void setCurrentPreset (AUAudioUnitPreset* preset)
     {
-        getAudioProcessor().setCurrentProgram (static_cast<int> ([preset number]));
+        callSyncOnMessageThread ([&]
+        {
+            getAudioProcessor().setCurrentProgram (static_cast<int> ([preset number]));
+        });
     }
 
     NSArray<AUAudioUnitPreset*>* getFactoryPresets() const
@@ -311,11 +319,14 @@ public:
 
         juce::MemoryBlock state;
 
-       #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
-        getAudioProcessor().getCurrentProgramStateInformation (state);
-       #else
-        getAudioProcessor().getStateInformation (state);
-       #endif
+        callSyncOnMessageThread ([&]
+        {
+           #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
+            getAudioProcessor().getCurrentProgramStateInformation (state);
+           #else
+            getAudioProcessor().getStateInformation (state);
+           #endif
+        });
 
         if (state.getSize() > 0)
         {
@@ -346,11 +357,14 @@ public:
 
         ScopedKeyChange scope (au, @"allParameterValues");
 
-       #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
-        getAudioProcessor().setCurrentProgramStateInformation (rawBytes, numBytes);
-       #else
-        getAudioProcessor().setStateInformation (rawBytes, numBytes);
-       #endif
+        callSyncOnMessageThread ([&]
+        {
+           #if JUCE_AU_WRAPPERS_SAVE_PROGRAM_STATES
+            getAudioProcessor().setCurrentProgramStateInformation (rawBytes, numBytes);
+           #else
+            getAudioProcessor().setStateInformation (rawBytes, numBytes);
+           #endif
+        });
     }
 
     AUParameterTree* getParameterTree() const
